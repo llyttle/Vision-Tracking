@@ -4,7 +4,7 @@
     images with opencv in ROS. """
 
 import rospy
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import Image, LaserScan
 from copy import deepcopy
 from cv_bridge import CvBridge
 import cv2
@@ -39,7 +39,6 @@ class BallTracker(object):
         cv2.waitKey(5)
 
 
-
     def process_image(self, msg):
         """ Process image messages from ROS and stash them in an attribute
             called cv_image for subsequent processing """
@@ -52,6 +51,13 @@ class BallTracker(object):
         self.hsv_image = cv2.cvtColor(self.cv_image, cv2.COLOR_BGR2HSV)
         #filter the hue image
         self.hsv_binary_image = cv2.inRange(self.hsv_image, (0,0,0), (60,100, 100))
+
+        
+    def get_laser_scan(self, msg):
+        for i in msg.ranges:
+            if i > 0:
+                print(i)
+
 
     def run(self):
         """ The main run loop, in this node it doesn't do anything """
@@ -70,6 +76,8 @@ class BallTracker(object):
                 print(self.hsv_binary_image.shape)
                 cv2.imshow('hsv_video_window', self.hsv_binary_image)
                 cv2.waitKey(5)
+            
+            self.get_laser_scan
 
             # start out not issuing any motor commands
             r.sleep()
