@@ -5,7 +5,7 @@
 
 #imports
 import rospy
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import Image, LaserScan
 from copy import deepcopy
 from cv_bridge import CvBridge
 import cv2
@@ -57,6 +57,13 @@ class BallTracker(object):
         """A function which filters self.cv_image into binary images which can be used for processing in decision and navigational algorithms."""
         self.ball_binary_image = cv2.inRange(self.cv_image, (0,0,1), (10,10,255))
         
+
+
+        
+    def get_laser_scan(self, msg):
+        for i in msg.ranges:
+            if i > 0:
+                print(i)
 
 
     def run(self):
