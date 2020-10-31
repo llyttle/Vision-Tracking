@@ -73,8 +73,16 @@ class BallTracker(object):
         theta_rad = math.atan((self.center_x-300)/f)    #theta = atan(x/f)
         theta = math.degrees(theta_rad)
 
-        print(theta)
+        #ping degrees of center of object to find distance
+        distance = msg.ranges[int(theta)]      
         
+        if distance < 10:
+            print("Theta =      ", theta)
+            print("Distance =   ", distance)
+        else:
+            print("no object in view")
+        
+        print("-----------------------------------")
 
     def run(self):
         """ The main run loop, in this node it doesn't do anything """
