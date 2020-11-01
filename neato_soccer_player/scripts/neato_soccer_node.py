@@ -32,7 +32,7 @@ class BallTracker(object):
         #create a subscriber to the camera topic
         rospy.Subscriber(self.scan_topic, LaserScan, self.pixel_to_degrees)
 
-        rospy.Subscriber(image_topic, Image, self.process_image)
+        rospy.Subscriber(image_topic, Image, self.process_image_msg)
         #create a publisher to drive the robot
         self.pub = rospy.Publisher('cmd_vel', Twist, queue_size=10)
         self.lidar_array = []
@@ -55,19 +55,24 @@ class BallTracker(object):
         cv2.imshow('image_info', image_info_window)
         cv2.waitKey(5)
 
-    def process_image(self, msg):
+    def process_image_msg(self, msg):
         """ Process image messages from ROS and stash them in an attribute
             called cv_image. """
         self.cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding="bgr8")
 
+    def process_image(self):
+        """A function which processes self.cv_image to retrieve important information. It filters self.cv image into binary images which can be used for processing in decision and navigational algorithms. And it retrieves image locations of objects in the scene from the images"""
+        self.ball_binary_image = cv2.inRange(self.cv_image, (0,0,80), (20,20,255))
+
+
+        #process the binary image to get the balls position
         moments = cv2.moments(self.ball_binary_image)
         if moments['m00'] != 0:
+
+            #find the center x and y cords
             self.center_x, self.center_y = moments['m10']/moments['m00'], moments['m01']/moments['m00']
             #print(self.center_x, self.center_y)
 
-    def filter_image(self):
-        """A function which filters self.cv_image into binary images which can be used for processing in decision and navigational algorithms."""
-        self.ball_binary_image = cv2.inRange(self.cv_image, (0,0,80), (20,20,255))
 
     def pixel_to_degrees(self, msg):
         """A function to convert an object's location in a pixel image to an angle and distance in respect to the Neato"""
@@ -95,7 +100,7 @@ class BallTracker(object):
         while not rospy.is_shutdown():
             
             # update the filtered binary images
-            self.filter_image()
+            self.process_image()
 
             self.pixel_to_degrees
 
