@@ -36,6 +36,9 @@ class BallTracker(object):
         #create a publisher to drive the robot
         self.pub = rospy.Publisher('cmd_vel', Twist, queue_size=10)
         self.lidar_array = []
+
+        #create list to hold ball position (theta, distance)
+        self.ball_pos = []
         
         #create an open cv visualization window
         cv2.namedWindow('video_window')
@@ -67,19 +70,21 @@ class BallTracker(object):
         self.ball_binary_image = cv2.inRange(self.cv_image, (0,0,80), (20,20,255))
 
     def pixel_to_degrees(self, msg):
-        vanish_angle = math.radians(43)                 #widest angle in image frame
-        f = -300/math.tan(vanish_angle)                 #variable representing camera focal distance
+        """A function to convert an object's location in a pixel image to an angle and distance in respect to the Neato"""
+        vanish_angle = math.radians(43)                 # widest angle in image frame
+        f = -300/math.tan(vanish_angle)                 # variable representing camera focal distance
 
-        theta_rad = math.atan((self.center_x-300)/f)    #theta = atan(x/f)
+        theta_rad = math.atan((self.center_x-300)/f)    # theta = atan(x/f)
         theta = math.degrees(theta_rad)
 
-        #ping degrees of center of object to find distance
-        distance = msg.ranges[int(theta)]      
-        
+        distance = msg.ranges[int(theta)]               # ping degrees of center of object to find distance
+
         if distance < 10:
-            print("Theta =      ", theta)
-            print("Distance =   ", distance)
+            self.ball_pos = [theta, distance]
+            print("Theta =      ", self.ball_pos[0])
+            print("Distance =   ", self.ball_pos[1])
         else:
+            self.ball_pos = []
             print("no object in view")
         
         print("-----------------------------------")
@@ -89,28 +94,28 @@ class BallTracker(object):
         r = rospy.Rate(5)
         while not rospy.is_shutdown():
             
-            #update the filtered binary images
+            # update the filtered binary images
             self.filter_image()
 
             self.pixel_to_degrees
 
-            #if there is a cv.image
+            # if there is a cv.image
         #    if not self.cv_image is None:
                 
-                #debug text
+                # debug text
             #    print("\n self.cv_image:")
             #    print(self.cv_image.shape)
                 
-                #display self.cv_image
+                # display self.cv_image
             #    cv2.imshow('video_window', self.cv_image)
             #    cv2.waitKey(5)
 
             if not self.ball_binary_image is None:
-                #debug text
+                # debug text
             #    print("\n self.ball_binary_image: ")
             #    print(self.ball_binary_image.shape)
                 
-                #display the ball filter image
+                # display the ball filter image
                 cv2.imshow('ball filter',self.ball_binary_image)
                 cv2.waitKey(5)        
 
