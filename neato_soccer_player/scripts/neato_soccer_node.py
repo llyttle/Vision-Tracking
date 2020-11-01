@@ -64,7 +64,7 @@ class BallTracker(object):
 
     def filter_image(self):
         """A function which filters self.cv_image into binary images which can be used for processing in decision and navigational algorithms."""
-        self.ball_binary_image = cv2.inRange(self.cv_image, (0,0,1), (10,10,255))
+        self.ball_binary_image = cv2.inRange(self.cv_image, (0,0,80), (20,20,255))
 
     def pixel_to_degrees(self, msg):
         vanish_angle = math.radians(43)                 #widest angle in image frame
@@ -95,7 +95,7 @@ class BallTracker(object):
             self.pixel_to_degrees
 
             #if there is a cv.image
-            #if not self.cv_image is None:
+        #    if not self.cv_image is None:
                 
                 #debug text
             #    print("\n self.cv_image:")
