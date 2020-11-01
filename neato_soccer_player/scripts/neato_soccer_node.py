@@ -140,8 +140,7 @@ class BallTracker(object):
                 # display the ball filter image
                 cv2.imshow('ball filter',self.ball_binary_image)
                 cv2.waitKey(5)        
-                
-                self.kick()
+
             # start out not issuing any motor commands
             r.sleep()
 
