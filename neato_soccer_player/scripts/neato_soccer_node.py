@@ -172,6 +172,7 @@ class BallTracker(object):
                 cv2.imshow('ball filter',self.ball_binary_image)
                 cv2.waitKey(5)        
 
+
             self.pub.publish(Twist(angular=Vector3(z=self.angular), linear=Vector3(x=self.velocity)))
 
             # start out not issuing any motor commands
