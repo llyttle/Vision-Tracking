@@ -122,6 +122,23 @@ class BallTracker(object):
 
         self.velocity = speed
         self.angular = turn
+    
+    def kick(self):
+        """ this is a function that tells the neato to kick the ball"""
+        #move at 10 m/s straight        
+        linvel = Vector3(10,0,0)
+        angvel = Vector3(0,0,0)
+        msg = Twist(linvel,angvel)
+        #send the message to the robot`
+        self.pub.publish(msg)
+
+        #move forward for 2 seconds
+        rospy.sleep(2.0)
+
+        #stop
+        linvel = Vector3(0,0,0)
+        msg = Twist(linvel,angvel)
+        self.pub.publish(msg)
 
     def run(self):
         """ The main run loop, in this node it doesn't do anything """
