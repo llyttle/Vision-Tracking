@@ -89,24 +89,31 @@ class BallTracker(object):
         vanish_angle = math.radians(43)                 # widest angle in image frame
         f = -300/math.tan(vanish_angle)                 # variable representing camera focal distance
 
+        if self.found_object == True:
+            theta_rad = math.atan((self.center_x-300)/f)    # theta = atan(x/f)
+            theta = int(math.degrees(theta_rad))
+
+            distance = msg.ranges[theta]               # ping degrees of center of object to find distance
+            
+            self.ball_pos = (theta, distance)
+            
+            print("Theta =      ", self.ball_pos[0])
+            print("Distance =   ", self.ball_pos[1])
+        else:
+            self.ball_pos = None
+            print(self.ball_pos)
         
-        theta_rad = math.atan((self.center_x-300)/f)    # theta = atan(x/f)
-        theta = int(math.degrees(theta_rad))
-
-        distance = msg.ranges[theta]               # ping degrees of center of object to find distance
-        self.ball_pos = (theta, distance)
-
-        print("Theta =      ", self.ball_pos[0])
-        print("Distance =   ", self.ball_pos[1])
         print("-----------------------------------")
 
     def face_ball(self):
         error_margin = 1        #margin that the robot will consider "close enough" of straight forward
-        
-        if self.ball_pos[0] < 0-error_margin or self.ball_pos[0] > 0+error_margin:
-            turn = self.ball_pos[0]/100
+        if self.ball_pos != None:
+            if self.ball_pos[0] < 0-error_margin or self.ball_pos[0] > 0+error_margin:
+                turn = self.ball_pos[0]/50
+            else:
+                turn = 0
         else:
-            turn = 0
+            turn = 1
 
         self.velocity = 0
         self.angular = turn
@@ -119,12 +126,9 @@ class BallTracker(object):
             # update the filtered binary images
             self.process_image()
 
-            if self.found_object == True:
-                self.pixel_to_degrees
-                self.face_ball()
-            else:
-                print('not found')
-                self.angular = 1
+            
+            self.pixel_to_degrees
+            self.face_ball()
 
             # if there is a cv.image
         #    if not self.cv_image is None:
