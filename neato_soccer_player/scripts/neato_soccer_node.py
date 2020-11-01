@@ -27,6 +27,8 @@ class BallTracker(object):
         self.scan_topic = "scan"      
         #used to convert ROS messages to OpenCV
         self.bridge = CvBridge()
+        
+        self.found_object = False
 
         #ceate publishers and subscribers
         #create a subscriber to the camera topic
@@ -34,11 +36,15 @@ class BallTracker(object):
 
         rospy.Subscriber(image_topic, Image, self.process_image)
         #create a publisher to drive the robot
-        self.pub = rospy.Publisher('cmd_vel', Twist, queue_size=10)
+        self.pub = rospy.Publisher('/cmd_vel', Twist, queue_size=10)
         self.lidar_array = []
 
         #create list to hold ball position (theta, distance)
-        self.ball_pos = []
+        #self.ball_pos = []
+        self.ball_pos = (0, 0)
+
+        self.velocity = 0
+        self.angular = .5
         
         #create an open cv visualization window
         cv2.namedWindow('video_window')
@@ -63,7 +69,11 @@ class BallTracker(object):
         moments = cv2.moments(self.ball_binary_image)
         if moments['m00'] != 0:
             self.center_x, self.center_y = moments['m10']/moments['m00'], moments['m01']/moments['m00']
-            #print(self.center_x, self.center_y)
+        
+        if cv2.countNonZero(self.ball_binary_image) == 0:
+            self.found_object = False
+        else:
+            self.found_object = True
 
     def filter_image(self):
         """A function which filters self.cv_image into binary images which can be used for processing in decision and navigational algorithms."""
@@ -74,20 +84,27 @@ class BallTracker(object):
         vanish_angle = math.radians(43)                 # widest angle in image frame
         f = -300/math.tan(vanish_angle)                 # variable representing camera focal distance
 
-        theta_rad = math.atan((self.center_x-300)/f)    # theta = atan(x/f)
-        theta = math.degrees(theta_rad)
-
-        distance = msg.ranges[int(theta)]               # ping degrees of center of object to find distance
-
-        if distance < 10:
-            self.ball_pos = [theta, distance]
-            print("Theta =      ", self.ball_pos[0])
-            print("Distance =   ", self.ball_pos[1])
-        else:
-            self.ball_pos = []
-            print("no object in view")
         
+        theta_rad = math.atan((self.center_x-300)/f)    # theta = atan(x/f)
+        theta = int(math.degrees(theta_rad))
+
+        distance = msg.ranges[theta]               # ping degrees of center of object to find distance
+        self.ball_pos = (theta, distance)
+
+        print("Theta =      ", self.ball_pos[0])
+        print("Distance =   ", self.ball_pos[1])
         print("-----------------------------------")
+
+    def face_ball(self):
+        error_margin = 1        #margin that the robot will consider "close enough" of straight forward
+        
+        if self.ball_pos[0] < 0-error_margin or self.ball_pos[0] > 0+error_margin:
+            turn = self.ball_pos[0]/100
+        else:
+            turn = 0
+
+        self.velocity = 0
+        self.angular = turn
 
     def run(self):
         """ The main run loop, in this node it doesn't do anything """
@@ -97,7 +114,12 @@ class BallTracker(object):
             # update the filtered binary images
             self.filter_image()
 
-            self.pixel_to_degrees
+            if self.found_object == True:
+                self.pixel_to_degrees
+                self.face_ball()
+            else:
+                print('not found')
+                self.angular = 1
 
             # if there is a cv.image
         #    if not self.cv_image is None:
@@ -118,6 +140,8 @@ class BallTracker(object):
                 # display the ball filter image
                 cv2.imshow('ball filter',self.ball_binary_image)
                 cv2.waitKey(5)        
+
+            self.pub.publish(Twist(angular=Vector3(z=self.angular)))
 
             # start out not issuing any motor commands
             r.sleep()
