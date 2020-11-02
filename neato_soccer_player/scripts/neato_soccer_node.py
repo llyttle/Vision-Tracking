@@ -120,8 +120,8 @@ class BallTracker(object):
             turn = self.last_ball_direction
             speed = 0
 
-        self.velocity = speed
-        self.angular = turn
+        msg = Twist(Vector3(speed, 0, 0),Vector3(0, 0, turn))
+        return msg
     
     def kick(self):
         """ this is a function that tells the neato to kick the ball"""
@@ -138,7 +138,7 @@ class BallTracker(object):
         #stop
         linvel = Vector3(0,0,0)
         msg = Twist(linvel,angvel)
-        self.pub.publish(msg)
+        return msg
 
     def run(self):
         """ The main run loop, in this node it doesn't do anything """
@@ -150,7 +150,8 @@ class BallTracker(object):
 
             
             self.pixel_to_degrees
-            self.face_ball()
+            
+            self.msg = self.face_ball()
 
             # if there is a cv.image
         #    if not self.cv_image is None:
@@ -173,7 +174,7 @@ class BallTracker(object):
                 cv2.waitKey(5)        
 
 
-            self.pub.publish(Twist(angular=Vector3(z=self.angular), linear=Vector3(x=self.velocity)))
+            self.pub.publish(self.msg)
 
             # start out not issuing any motor commands
             r.sleep()
