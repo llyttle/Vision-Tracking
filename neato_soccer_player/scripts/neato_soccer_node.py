@@ -147,11 +147,13 @@ class BallTracker(object):
             
             # update the filtered binary images
             self.process_image()
-
             
             self.pixel_to_degrees
             
-            self.msg = self.face_ball()
+            if self.ball_pos == None or self.ball_pos[1] > 2:
+                self.msg = self.face_ball()
+            else:
+                self.msg = self.kick()
 
             # if there is a cv.image
         #    if not self.cv_image is None:
