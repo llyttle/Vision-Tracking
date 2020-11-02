@@ -30,6 +30,8 @@ class BallTracker(object):
         
         self.found_object = False
 
+        self.last_ball_direction = 1
+
         #ceate publishers and subscribers
         #create a subscriber to the camera topic
         rospy.Subscriber(self.scan_topic, LaserScan, self.pixel_to_degrees)
@@ -83,7 +85,6 @@ class BallTracker(object):
         else:
             self.found_object = True
 
-
     def pixel_to_degrees(self, msg):
         """A function to convert an object's location in a pixel image to an angle and distance in respect to the Neato"""
         vanish_angle = math.radians(43)                 # widest angle in image frame
@@ -99,10 +100,12 @@ class BallTracker(object):
             
             print("Theta =      ", self.ball_pos[0])
             print("Distance =   ", self.ball_pos[1])
+
+            self.last_ball_direction = -(self.center_x-300)/abs(self.center_x-300) 
         else:
             self.ball_pos = None
             print(self.ball_pos)
-        
+
         print("-----------------------------------")
 
     def face_ball(self):
@@ -113,7 +116,7 @@ class BallTracker(object):
             else:
                 turn = 0
         else:
-            turn = 1
+            turn = self.last_ball_direction
 
         self.velocity = 0
         self.angular = turn
