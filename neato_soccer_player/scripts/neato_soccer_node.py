@@ -27,18 +27,26 @@ class BallTracker(object):
         self.scan_topic = "scan"      
         #used to convert ROS messages to OpenCV
         self.bridge = CvBridge()
+        
+        self.found_object = False
+
+        self.last_ball_direction = 1
 
         #ceate publishers and subscribers
         #create a subscriber to the camera topic
         rospy.Subscriber(self.scan_topic, LaserScan, self.pixel_to_degrees)
 
-        rospy.Subscriber(image_topic, Image, self.process_image)
+        rospy.Subscriber(image_topic, Image, self.process_image_msg)
         #create a publisher to drive the robot
-        self.pub = rospy.Publisher('cmd_vel', Twist, queue_size=10)
+        self.pub = rospy.Publisher('/cmd_vel', Twist, queue_size=10)
         self.lidar_array = []
 
         #create list to hold ball position (theta, distance)
-        self.ball_pos = []
+        #self.ball_pos = []
+        self.ball_pos = (0, 0)
+
+        self.velocity = 0
+        self.angular = .5
         
         #create an open cv visualization window
         cv2.namedWindow('video_window')
@@ -55,39 +63,65 @@ class BallTracker(object):
         cv2.imshow('image_info', image_info_window)
         cv2.waitKey(5)
 
-    def process_image(self, msg):
+    def process_image_msg(self, msg):
         """ Process image messages from ROS and stash them in an attribute
             called cv_image. """
         self.cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding="bgr8")
 
+    def process_image(self):
+        """A function which processes self.cv_image to retrieve important information. It filters self.cv image into binary images which can be used for processing in decision and navigational algorithms. And it retrieves image locations of objects in the scene from the images"""
+        self.ball_binary_image = cv2.inRange(self.cv_image, (0,0,80), (20,20,255))
+
+
+        #process the binary image to get the balls position
         moments = cv2.moments(self.ball_binary_image)
         if moments['m00'] != 0:
-            self.center_x, self.center_y = moments['m10']/moments['m00'], moments['m01']/moments['m00']
-            #print(self.center_x, self.center_y)
 
-    def filter_image(self):
-        """A function which filters self.cv_image into binary images which can be used for processing in decision and navigational algorithms."""
-        self.ball_binary_image = cv2.inRange(self.cv_image, (0,0,80), (20,20,255))
+            #find the center x and y cords
+            self.center_x, self.center_y = moments['m10']/moments['m00'], moments['m01']/moments['m00']
+        
+        if cv2.countNonZero(self.ball_binary_image) == 0:
+            self.found_object = False
+        else:
+            self.found_object = True
 
     def pixel_to_degrees(self, msg):
         """A function to convert an object's location in a pixel image to an angle and distance in respect to the Neato"""
         vanish_angle = math.radians(43)                 # widest angle in image frame
         f = -300/math.tan(vanish_angle)                 # variable representing camera focal distance
 
-        theta_rad = math.atan((self.center_x-300)/f)    # theta = atan(x/f)
-        theta = math.degrees(theta_rad)
+        if self.found_object == True:
+            theta_rad = math.atan((self.center_x-300)/f)    # theta = atan(x/f)
+            theta = int(math.degrees(theta_rad))
 
-        distance = msg.ranges[int(theta)]               # ping degrees of center of object to find distance
-
-        if distance < 10:
-            self.ball_pos = [theta, distance]
+            distance = msg.ranges[theta]               # ping degrees of center of object to find distance
+            
+            self.ball_pos = (theta, distance)
+            
             print("Theta =      ", self.ball_pos[0])
             print("Distance =   ", self.ball_pos[1])
+
+            self.last_ball_direction = -(self.center_x-300)/abs(self.center_x-300) 
         else:
-            self.ball_pos = []
-            print("no object in view")
-        
+            self.ball_pos = None
+            print(self.ball_pos)
+
         print("-----------------------------------")
+
+    def face_ball(self):
+        error_margin = 1        #margin that the robot will consider "close enough" of straight forward
+        if self.ball_pos != None:
+            if self.ball_pos[0] < 0-error_margin or self.ball_pos[0] > 0+error_margin:
+                turn = self.ball_pos[0]/50
+            else:
+                turn = 0
+            speed = 1
+        else:
+            turn = self.last_ball_direction
+            speed = 0
+
+        self.velocity = speed
+        self.angular = turn
 
     def run(self):
         """ The main run loop, in this node it doesn't do anything """
@@ -95,9 +129,11 @@ class BallTracker(object):
         while not rospy.is_shutdown():
             
             # update the filtered binary images
-            self.filter_image()
+            self.process_image()
 
+            
             self.pixel_to_degrees
+            self.face_ball()
 
             # if there is a cv.image
         #    if not self.cv_image is None:
@@ -118,6 +154,8 @@ class BallTracker(object):
                 # display the ball filter image
                 cv2.imshow('ball filter',self.ball_binary_image)
                 cv2.waitKey(5)        
+
+            self.pub.publish(Twist(angular=Vector3(z=self.angular), linear=Vector3(x=self.velocity)))
 
             # start out not issuing any motor commands
             r.sleep()
