@@ -115,10 +115,12 @@ class BallTracker(object):
                 turn = self.ball_pos[0]/50
             else:
                 turn = 0
+            speed = 1
         else:
             turn = self.last_ball_direction
+            speed = 0
 
-        self.velocity = 0
+        self.velocity = speed
         self.angular = turn
 
     def run(self):
@@ -153,7 +155,7 @@ class BallTracker(object):
                 cv2.imshow('ball filter',self.ball_binary_image)
                 cv2.waitKey(5)        
 
-            self.pub.publish(Twist(angular=Vector3(z=self.angular)))
+            self.pub.publish(Twist(angular=Vector3(z=self.angular), linear=Vector3(x=self.velocity)))
 
             # start out not issuing any motor commands
             r.sleep()
