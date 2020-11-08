@@ -3,15 +3,21 @@
 """ This is a script that walks through some of the basics of working with
     images with opencv in ROS. """
 
-#imports
+#ROS imports
 import rospy
+from nav_msgs.msg import Odometry
+from std_msgs.msg import Header, String
 from sensor_msgs.msg import Image, LaserScan
+from geometry_msgs.msg import Twist, Vector3, Pose
+#Open CV imports
 from copy import deepcopy
 from cv_bridge import CvBridge
 import cv2
+#helper imports
 import math
 import numpy as np
-from geometry_msgs.msg import Twist, Vector3
+from tf.transformations import euler_from_quaternion, quaternion_from_euler
+
 
 class BallTracker(object):
     """ The BallTracker is a Python object that encompasses a ROS node 
@@ -27,22 +33,25 @@ class BallTracker(object):
         self.scan_topic = "scan"      
         #used to convert ROS messages to OpenCV
         self.bridge = CvBridge()
+
+        self.goal_in_sight = False
         
         self.found_object = False
 
         self.last_ball_direction = 1
 
         #ceate publishers and subscribers
-        #create a subscriber to the camera topic
-        rospy.Subscriber(self.scan_topic, LaserScan, self.pixel_to_degrees)
+        rospy.Subscriber(self.scan_topic, LaserScan, self.pixel_to_degrees)     # create a subscriber to read LIDAR data
+        rospy.Subscriber(image_topic, Image, self.process_image_msg)            # create a subscriber to the camera topic
+        rospy.Subscriber('/odom', Odometry, self.get_Goal)                   # create a subscriber to get odom position
 
-        rospy.Subscriber(image_topic, Image, self.process_image_msg)
-        #create a publisher to drive the robot
-        self.pub = rospy.Publisher('/cmd_vel', Twist, queue_size=10)
+        self.pub = rospy.Publisher('/cmd_vel', Twist, queue_size=10)            # create a publisher to drive the robot
+        
+        self.last_xy_theta = [0, 0, 0]
+
         self.lidar_array = []
 
         #create list to hold ball position (theta, distance)
-        #self.ball_pos = []
         self.ball_pos = (0, 0)
 
         self.velocity = 0
@@ -52,6 +61,11 @@ class BallTracker(object):
         cv2.namedWindow('video_window')
         #create a call back function for when the image in the window is clicked on
     #    cv2.setMouseCallback('video_window', self.process_mouse_event)
+    def cart2pol(self, x, y):
+        """helper function for converting cartesian coordinates to polar coordinates"""
+        theta = math.atan2(y, x)
+        d = np.hypot(x, y)
+        return (theta, d)
 
     def process_mouse_event(self, event, x,y,flags,param):
         """ A function that is called when the mouse clicks on the open camera window. Function displays a popup with text describing the color value of the camera pixel you clicked on"""
@@ -71,7 +85,6 @@ class BallTracker(object):
     def process_image(self):
         """A function which processes self.cv_image to retrieve important information. It filters self.cv image into binary images which can be used for processing in decision and navigational algorithms. And it retrieves image locations of objects in the scene from the images"""
         self.ball_binary_image = cv2.inRange(self.cv_image, (0,0,80), (20,20,255))
-
 
         #process the binary image to get the balls position
         moments = cv2.moments(self.ball_binary_image)
@@ -140,6 +153,49 @@ class BallTracker(object):
         msg = Twist(linvel,angvel)
         return msg
 
+    def get_Goal(self, odom_data):
+        """This function finds the position of the goal
+        
+        if goal in sight:
+            goal_position = TIMS CODE
+            adjust robot position for any error
+        
+        elif goal not in sight:
+            goal_position = ROBOT_TRANSFORM(previous_goal_position)
+        """
+        #positions of each goal in map frame (x, y)
+        goal1_pos = (8, 0)
+        goal2_pos = (-8, 0)
+
+        #finding the current position of the robot (x, y, theta)
+        pose = odom_data.pose.pose
+        orientation_list = [pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w]
+        yaw = euler_from_quaternion(orientation_list)[2]
+        xy_theta_position = np.array([pose.position.x, pose.position.y, yaw])
+
+        if self.goal_in_sight == True:
+            #TODO: put Tim's code here
+
+            #Re-defining the position of the robot when the real goal is in sight.
+            """ if last_goal_position != current_goal_position:
+                    current_goal_position_xy_theta = 
+                    last_goal_position_xy_theta = 
+                    xy_theta_adjust = current_goal_position_xy_theta - last_goal_position_xy_theta
+            """
+            pass
+
+        elif self.goal_in_sight == False:
+            adjusted_position = xy_theta_position + xy_theta_adjust
+
+            theta1, d1 = self.cart2pol(goal1_pos[0]-adjusted_position[0], goal1_pos[1]-adjusted_position[1])
+            theta2, d2 = self.cart2pol(goal2_pos[0]-adjusted_position[0], goal2_pos[1]-adjusted_position[1])
+
+            goal1_vec = (math.degrees(theta1 + adjusted_position[2]), d1)
+            goal2_vec = (math.degrees(theta2 - adjusted_position[2]), d2)
+
+            print(goal1_vec)
+            print(goal2_vec)
+
     def run(self):
         """ The main run loop, in this node it doesn't do anything """
         r = rospy.Rate(5)
@@ -148,6 +204,7 @@ class BallTracker(object):
             # update the filtered binary images
             self.process_image()
             
+            self.get_Goal
             self.pixel_to_degrees
             
             if self.ball_pos == None or self.ball_pos[1] > 2:
