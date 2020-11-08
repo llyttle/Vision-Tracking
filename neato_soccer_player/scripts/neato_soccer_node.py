@@ -87,7 +87,6 @@ class BallTracker(object):
     def find_object_in_binary_image(self, binary_image):
         moments = cv2.moments(binary_image)
 
-
         #process the binary image to get the balls position
         moments = cv2.moments(self.ball_binary_image)
         if moments['m00'] != 0:
@@ -226,13 +225,6 @@ class BallTracker(object):
 
             print(goal1_vec)
             print(goal2_vec)
-
-    def Arbiter(self):
-        if self.ball_pos == None or self.ball_pos[1] > 2:
-            self.msg = self.face_ball()
-        else:
-            self.msg = self.kick()
-
 
     def run(self):
         """ The main run loop, in this node it doesn't do anything """
