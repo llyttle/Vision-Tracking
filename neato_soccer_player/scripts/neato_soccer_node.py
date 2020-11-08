@@ -40,23 +40,18 @@ class BallTracker(object):
 
         self.last_ball_direction = 1
 
+        self.last_xy_theta = [0, 0, 0]
+
+        #create list to hold ball position (theta, distance)
+        self.ball_pos = (0, 0)
+        
         #ceate publishers and subscribers
         rospy.Subscriber(self.scan_topic, LaserScan, self.pixel_to_degrees)     # create a subscriber to read LIDAR data
         rospy.Subscriber(image_topic, Image, self.process_image_msg)            # create a subscriber to the camera topic
         rospy.Subscriber('/odom', Odometry, self.get_Goal)                   # create a subscriber to get odom position
 
         self.pub = rospy.Publisher('/cmd_vel', Twist, queue_size=10)            # create a publisher to drive the robot
-        
-        self.last_xy_theta = [0, 0, 0]
 
-        self.lidar_array = []
-
-        #create list to hold ball position (theta, distance)
-        self.ball_pos = (0, 0)
-
-        self.velocity = 0
-        self.angular = .5
-        
         #create an open cv visualization window
         cv2.namedWindow('video_window')
         #create a call back function for when the image in the window is clicked on
@@ -185,7 +180,7 @@ class BallTracker(object):
             pass
 
         elif self.goal_in_sight == False:
-            adjusted_position = xy_theta_position + xy_theta_adjust
+            adjusted_position = xy_theta_position #+ xy_theta_adjust
 
             theta1, d1 = self.cart2pol(goal1_pos[0]-adjusted_position[0], goal1_pos[1]-adjusted_position[1])
             theta2, d2 = self.cart2pol(goal2_pos[0]-adjusted_position[0], goal2_pos[1]-adjusted_position[1])
@@ -196,22 +191,26 @@ class BallTracker(object):
             print(goal1_vec)
             print(goal2_vec)
 
+    def Arbiter(self):
+        if self.ball_pos == None or self.ball_pos[1] > 2:
+            self.msg = self.face_ball()
+        else:
+            self.msg = self.kick()
+
+
     def run(self):
         """ The main run loop, in this node it doesn't do anything """
         r = rospy.Rate(5)
         while not rospy.is_shutdown():
             
-            # update the filtered binary images
-            self.process_image()
-            
-            self.get_Goal
-            self.pixel_to_degrees
-            
-            if self.ball_pos == None or self.ball_pos[1] > 2:
-                self.msg = self.face_ball()
-            else:
-                self.msg = self.kick()
+            # Code to run constantly
+            self.process_image()        # update the filtered binary images
+            self.get_Goal               # get (theta, distance) of the goal
+            self.pixel_to_degrees       # if there is a ball find position and update self.ball_pos
 
+            # Arbiter to controll behaviors
+            self.Arbiter()
+            
             # if there is a cv.image
         #    if not self.cv_image is None:
                 
