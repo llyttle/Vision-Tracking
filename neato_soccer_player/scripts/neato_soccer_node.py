@@ -363,7 +363,7 @@ class BallTracker(object):
             pass
 
         elif self.goal_in_sight == False:
-            adjusted_position = xy_theta_position + xy_theta_adjust
+            adjusted_position = xy_theta_position #+ xy_theta_adjust
 
             theta1, d1 = self.cart2pol(goal1_pos[0]-adjusted_position[0], goal1_pos[1]-adjusted_position[1])
             theta2, d2 = self.cart2pol(goal2_pos[0]-adjusted_position[0], goal2_pos[1]-adjusted_position[1])
@@ -374,11 +374,19 @@ class BallTracker(object):
             print(goal1_vec)
             print(goal2_vec)
 
+    def Arbiter(self):
+        if self.ball_pos == None or self.ball_pos[1] > 2:
+            self.msg = self.face_ball()
+        else:
+            self.msg = self.kick()
+
+
     def run(self):
         """ The main run loop, in this node it doesn't do anything """
         r = rospy.Rate(5)
         while not rospy.is_shutdown():
             
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
             # Code to run constantly
@@ -400,10 +408,17 @@ class BallTracker(object):
             else:
                 self.msg = self.kick()
 >>>>>>> Clean up code
+=======
+            # Code to run constantly
+            self.process_image()        # update the filtered binary images
+            self.get_Goal               # get (theta, distance) of the goal
+            self.pixel_to_degrees       # if there is a ball find position and update self.ball_pos
+>>>>>>> Clean up code
 
             # Arbiter to controll behaviors
             self.Arbiter()
             
+<<<<<<< HEAD
             # if there is a cv.image
             if not self.cv_image is None:
 =======
@@ -415,6 +430,8 @@ class BallTracker(object):
             # Arbiter to controll behaviors
             self.Arbiter()
             
+=======
+>>>>>>> Clean up code
             # if there is a cv.image
         #    if not self.cv_image is None:
                 
