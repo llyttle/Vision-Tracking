@@ -250,6 +250,49 @@ class BallTracker(object):
             self.position_neato()
             self.msg = self.kick_ball()
 
+    def get_Goal(self, odom_data):
+        """This function finds the position of the goal
+        
+        if goal in sight:
+            goal_position = TIMS CODE
+            adjust robot position for any error
+        
+        elif goal not in sight:
+            goal_position = ROBOT_TRANSFORM(previous_goal_position)
+        """
+        #positions of each goal in map frame (x, y)
+        goal1_pos = (8, 0)
+        goal2_pos = (-8, 0)
+
+        #finding the current position of the robot (x, y, theta)
+        pose = odom_data.pose.pose
+        orientation_list = [pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w]
+        yaw = euler_from_quaternion(orientation_list)[2]
+        xy_theta_position = np.array([pose.position.x, pose.position.y, yaw])
+
+        if self.goal_in_sight == True:
+            #TODO: put Tim's code here
+
+            #Re-defining the position of the robot when the real goal is in sight.
+            """ if last_goal_position != current_goal_position:
+                    current_goal_position_xy_theta = 
+                    last_goal_position_xy_theta = 
+                    xy_theta_adjust = current_goal_position_xy_theta - last_goal_position_xy_theta
+            """
+            pass
+
+        elif self.goal_in_sight == False:
+            adjusted_position = xy_theta_position + xy_theta_adjust
+
+            theta1, d1 = self.cart2pol(goal1_pos[0]-adjusted_position[0], goal1_pos[1]-adjusted_position[1])
+            theta2, d2 = self.cart2pol(goal2_pos[0]-adjusted_position[0], goal2_pos[1]-adjusted_position[1])
+
+            goal1_vec = (math.degrees(theta1 + adjusted_position[2]), d1)
+            goal2_vec = (math.degrees(theta2 - adjusted_position[2]), d2)
+
+            print(goal1_vec)
+            print(goal2_vec)
+
     def run(self):
         """ The main run loop """
         r = rospy.Rate(5)
