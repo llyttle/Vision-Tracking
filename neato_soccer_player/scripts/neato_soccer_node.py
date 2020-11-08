@@ -40,6 +40,11 @@ class BallTracker(object):
 
         self.last_ball_direction = 1
 
+<<<<<<< HEAD
+=======
+        self.last_xy_theta = [0, 0, 0]
+
+>>>>>>> Clean up code
         #create list to hold ball position (theta, distance)
         self.ball_pos = (0, 0)
         
@@ -48,7 +53,10 @@ class BallTracker(object):
         rospy.Subscriber(image_topic, Image, self.process_image_msg)            # create a subscriber to the camera topic
         rospy.Subscriber('/odom', Odometry, self.get_odom)                   # create a subscriber to get odom position
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> Clean up code
         self.pub = rospy.Publisher('/cmd_vel', Twist, queue_size=10)            # create a publisher to drive the robot
 
         #create an open cv visualization window
@@ -225,6 +233,13 @@ class BallTracker(object):
 
             print(goal1_vec)
             print(goal2_vec)
+
+    def Arbiter(self):
+        if self.ball_pos == None or self.ball_pos[1] > 2:
+            self.msg = self.face_ball()
+        else:
+            self.msg = self.kick()
+
 
     def run(self):
         """ The main run loop, in this node it doesn't do anything """
