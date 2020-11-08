@@ -175,7 +175,7 @@ class BallTracker(object):
         return msg
     
     def kick(self):
-        """ this is a function that tells the neato to kick the ball"""
+        """ this is a function that tells the neato to kick the ball """
         #move at 10 m/s straight        
         linvel = Vector3(10,0,0)
         angvel = Vector3(0,0,0)
@@ -202,8 +202,8 @@ class BallTracker(object):
             goal_position = ROBOT_TRANSFORM(previous_goal_position)
         """
         #positions of each goal in map frame (x, y)
-        goal1_pos = (8, 0)
-        goal2_pos = (-8, 0)
+        goal1_pos = np.array([[8, 2],[8, -2]])
+        goal2_pos = np.array([[-8, 2],[-8, -2]])
 
         #finding the current position of the robot (x, y, theta)
         pose = odom_data.pose.pose
@@ -225,11 +225,15 @@ class BallTracker(object):
         elif self.goal_in_sight == False:
             adjusted_position = xy_theta_position #+ xy_theta_adjust
 
-            theta1, d1 = self.cart2pol(goal1_pos[0]-adjusted_position[0], goal1_pos[1]-adjusted_position[1])
-            theta2, d2 = self.cart2pol(goal2_pos[0]-adjusted_position[0], goal2_pos[1]-adjusted_position[1])
+            #Applying X, Y transformation
+            theta1, d1 = self.cart2pol(goal1_pos[0,0]-adjusted_position[0], goal1_pos[0,1]-adjusted_position[1])
+            theta2, d2 = self.cart2pol(goal1_pos[1,0]-adjusted_position[0], goal1_pos[1,1]-adjusted_position[1])
+            theta3, d3 = self.cart2pol(goal2_pos[0,0]-adjusted_position[0], goal2_pos[0,1]-adjusted_position[1])
+            theta4, d4 = self.cart2pol(goal2_pos[1,0]-adjusted_position[0], goal2_pos[1,1]-adjusted_position[1])
 
-            goal1_vec = (math.degrees(theta1 + adjusted_position[2]), d1)
-            goal2_vec = (math.degrees(theta2 - adjusted_position[2]), d2)
+            #Applying theta rotation
+            goal1_vec = ([[math.degrees(theta1 + adjusted_position[2]), d1], [math.degrees(theta2 + adjusted_position[2]), d2]])
+            goal2_vec = ([[math.degrees(theta3 + adjusted_position[2]), d3], [math.degrees(theta4 + adjusted_position[2]), d4]])
 
             print(goal1_vec)
             print(goal2_vec)
@@ -240,9 +244,8 @@ class BallTracker(object):
         else:
             self.msg = self.kick()
 
-
     def run(self):
-        """ The main run loop, in this node it doesn't do anything """
+        """ The main run loop """
         r = rospy.Rate(5)
         while not rospy.is_shutdown():
             
