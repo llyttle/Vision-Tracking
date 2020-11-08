@@ -51,9 +51,6 @@ class BallTracker(object):
 
         self.last_ball_direction = 1
 
-        #create list to hold ball position (theta, distance)
-        self.ball_pos = (0, 0)
-
         # Initialize helper functions class
         self.Convert = Helper_Functions()
         
@@ -282,7 +279,7 @@ class BallTracker(object):
             pass
 
         elif self.goal_in_sight == False:
-            adjusted_position = xy_theta_position + xy_theta_adjust
+            adjusted_position = xy_theta_position #+ xy_theta_adjust
 
             theta1, d1 = self.cart2pol(goal1_pos[0]-adjusted_position[0], goal1_pos[1]-adjusted_position[1])
             theta2, d2 = self.cart2pol(goal2_pos[0]-adjusted_position[0], goal2_pos[1]-adjusted_position[1])
@@ -293,19 +290,49 @@ class BallTracker(object):
             print(goal1_vec)
             print(goal2_vec)
 
+    def Arbiter(self):
+        if self.ball_pos == None or self.ball_pos[1] > 2:
+            self.msg = self.face_ball()
+        else:
+            self.msg = self.kick()
+
+
     def run(self):
         """ The main run loop """
         r = rospy.Rate(5)
         while not rospy.is_shutdown():
             
+<<<<<<< HEAD
             # Code to run constantly
             self.process_image()        # update the filtered binary images
+=======
+<<<<<<< HEAD
+            # update the filtered binary images
+            self.process_image()
+            
+            if self.ball_pos_data[1] == None or self.ball_pos_data[0] == None or self.ball_pos_data[1] > 2:
+                self.msg = self.face_ball()
+            else:
+                self.msg = self.kick()
+>>>>>>> Clean up code
 
             # Arbiter to controll behaviors
             self.Arbiter()
             
             # if there is a cv.image
             if not self.cv_image is None:
+=======
+            # Code to run constantly
+            self.process_image()        # update the filtered binary images
+            self.get_Goal               # get (theta, distance) of the goal
+            self.pixel_to_degrees       # if there is a ball find position and update self.ball_pos
+
+            # Arbiter to controll behaviors
+            self.Arbiter()
+            
+            # if there is a cv.image
+        #    if not self.cv_image is None:
+>>>>>>> Clean up code
                 
                 # display self.cv_image
                 cv2.imshow('video_window', self.cv_image)
