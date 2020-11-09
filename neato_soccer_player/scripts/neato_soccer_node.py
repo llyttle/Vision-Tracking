@@ -46,7 +46,7 @@ class BallTracker(object):
         self.ball_pos = (0, 0)
         
         #ceate publishers and subscribers
-        rospy.Subscriber(self.scan_topic, LaserScan, self.pixel_to_degrees)     # create a subscriber to read LIDAR data
+        rospy.Subscriber(self.scan_topic, LaserScan, self.get_Ball)     # create a subscriber to read LIDAR data
         rospy.Subscriber(image_topic, Image, self.process_image_msg)            # create a subscriber to the camera topic
         rospy.Subscriber('/odom', Odometry, self.get_Goal)                   # create a subscriber to get odom position
 
@@ -93,7 +93,7 @@ class BallTracker(object):
         else:
             self.found_object = True
 
-    def pixel_to_degrees(self, msg):
+    def get_Ball(self, msg):
         """A function to convert an object's location in a pixel image to an angle and distance in respect to the Neato"""
         vanish_angle = math.radians(43)                 # widest angle in image frame
         f = -300/math.tan(vanish_angle)                 # variable representing camera focal distance
@@ -116,62 +116,22 @@ class BallTracker(object):
 
         print("-----------------------------------")
 
-    def face_ball(self):
-        error_margin = 1        #margin that the robot will consider "close enough" of straight forward
-        if self.ball_pos != None:
-            if self.ball_pos[0] < 0-error_margin or self.ball_pos[0] > 0+error_margin:
-                turn = self.ball_pos[0]/50
-            else:
-                turn = 0
-            speed = 1
-        else:
-            turn = self.last_ball_direction
-            speed = 0
-
-        msg = Twist(Vector3(speed, 0, 0),Vector3(0, 0, turn))
-        return msg
-    
-    def kick(self):
-        """ this is a function that tells the neato to kick the ball """
-        #move at 10 m/s straight        
-        linvel = Vector3(10,0,0)
-        angvel = Vector3(0,0,0)
-        msg = Twist(linvel,angvel)
-        #send the message to the robot`
-        self.pub.publish(msg)
-
-        #move forward for 2 seconds
-        rospy.sleep(2.0)
-
-        #stop
-        linvel = Vector3(0,0,0)
-        msg = Twist(linvel,angvel)
-        return msg
-
     def get_Goal(self, odom_data):
-        """This function finds the position of the goal
-        
-        if goal in sight:
-            goal_position = TIMS CODE
-            adjust robot position for any error
-        
-        elif goal not in sight:
-            goal_position = ROBOT_TRANSFORM(previous_goal_position)
-        """
-        #positions of each goal in map frame (x, y)
+        """ This function finds the position of the goal """
+        # positions of each goal in map frame (x, y)
         goal1_pos = np.array([[8, 2],[8, -2]])
         goal2_pos = np.array([[-8, 2],[-8, -2]])
 
-        #finding the current position of the robot (x, y, theta)
+        # finding the current position of the robot (x, y, theta)
         pose = odom_data.pose.pose
         orientation_list = [pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w]
         yaw = euler_from_quaternion(orientation_list)[2]
         xy_theta_position = np.array([pose.position.x, pose.position.y, yaw])
 
         if self.goal_in_sight == True:
-            #TODO: put Tim's code here
+            # TODO: put Tim's code here
 
-            #Re-defining the position of the robot when the real goal is in sight.
+            # TODO: maybe re-define the position of the robot when the real goal is in sight.
             """ if last_goal_position != current_goal_position:
                     current_goal_position_xy_theta = 
                     last_goal_position_xy_theta = 
@@ -182,24 +142,69 @@ class BallTracker(object):
         elif self.goal_in_sight == False:
             adjusted_position = xy_theta_position #+ xy_theta_adjust
 
-            #Applying X, Y transformation
+            # Applying X, Y transformation
             theta1, d1 = self.cart2pol(goal1_pos[0,0]-adjusted_position[0], goal1_pos[0,1]-adjusted_position[1])
             theta2, d2 = self.cart2pol(goal1_pos[1,0]-adjusted_position[0], goal1_pos[1,1]-adjusted_position[1])
             theta3, d3 = self.cart2pol(goal2_pos[0,0]-adjusted_position[0], goal2_pos[0,1]-adjusted_position[1])
             theta4, d4 = self.cart2pol(goal2_pos[1,0]-adjusted_position[0], goal2_pos[1,1]-adjusted_position[1])
 
-            #Applying theta rotation
+            # Applying theta rotation
             goal1_vec = ([[math.degrees(theta1 + adjusted_position[2]), d1], [math.degrees(theta2 + adjusted_position[2]), d2]])
             goal2_vec = ([[math.degrees(theta3 + adjusted_position[2]), d3], [math.degrees(theta4 + adjusted_position[2]), d4]])
 
             print(goal1_vec)
             print(goal2_vec)
 
-    def Arbiter(self):
-        if self.ball_pos == None or self.ball_pos[1] > 2:
-            self.msg = self.face_ball()
+    def search_for_ball(self):
+        angvel = self.last_ball_direction
+        linvel = 0
+
+        msg = Twist(Vector3(linvel,0,0), Vector3(0,0,angvel))
+
+        return msg
+
+
+    def kick_ball(self):
+        error_margin = 1        # Margin that the robot will consider "close enough" of straight forward
+
+        # if the ball is farther than 2 meters, go towards the ball
+        if self.ball_pos[1] > 2:
+            if self.ball_pos[0] < 0-error_margin or self.ball_pos[0] > 0+error_margin:
+                    angvel = self.ball_pos[0]/50
+            else:
+                    angvel = 0
+            linvel = 1
+        # if the ball is closer than 2 meters, kick the ball
         else:
-            self.msg = self.kick()
+            # move at 10 m/s straight        
+            linvel = 10
+            angvel = 0
+            msg = Twist(Vector3(linvel,0,0), Vector3(0,0,angvel))
+            # send the message to the robot`
+            self.pub.publish(msg)
+
+            # move forward for 2 seconds
+            rospy.sleep(2.0)
+
+            # stop
+            linvel = 0
+
+        msg = Twist(Vector3(linvel,0,0), Vector3(0,0,angvel))
+
+        return msg
+    
+    def Arbiter(self):
+        """ Controller function for soccer player. Manages the following behaviors:
+            if no ball -- search for ball
+            if ball -- position behind ball
+            if in position -- kick the ball
+        """
+        if self.ball_pos == None and self.positioning == False:
+            self.msg = self.search_for_ball()
+        #elif self.ball_pos == True or self.positioning == True:
+            #got to position
+        else:       # """in position""":
+            self.msg = self.kick_ball()
 
     def run(self):
         """ The main run loop """
@@ -209,7 +214,7 @@ class BallTracker(object):
             # Code to run constantly
             self.process_image()        # update the filtered binary images
             self.get_Goal               # get (theta, distance) of the goal
-            self.pixel_to_degrees       # if there is a ball find position and update self.ball_pos
+            self.get_Ball               # if there is a ball find position and update self.ball_pos
 
             # Arbiter to controll behaviors
             self.Arbiter()
@@ -217,19 +222,11 @@ class BallTracker(object):
             # if there is a cv.image
         #    if not self.cv_image is None:
                 
-                # debug text
-            #    print("\n self.cv_image:")
-            #    print(self.cv_image.shape)
-                
                 # display self.cv_image
             #    cv2.imshow('video_window', self.cv_image)
             #    cv2.waitKey(5)
 
             if not self.ball_binary_image is None:
-                # debug text
-            #    print("\n self.ball_binary_image: ")
-            #    print(self.ball_binary_image.shape)
-                
                 # display the ball filter image
                 cv2.imshow('ball filter',self.ball_binary_image)
                 cv2.waitKey(5)        
