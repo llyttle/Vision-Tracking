@@ -51,7 +51,7 @@ class BallTracker(object):
         #create an open cv visualization window
         cv2.namedWindow('video_window')
         #create a call back function for when the image in the window is clicked on
-    #    cv2.setMouseCallback('video_window', self.process_mouse_event)
+        cv2.setMouseCallback('video_window', self.process_mouse_event)
 
     def process_mouse_event(self, event, x,y,flags,param):
         """ A function that is called when the mouse clicks on the open camera window. Function displays a popup with text describing the color value of the camera pixel you clicked on"""
@@ -156,15 +156,15 @@ class BallTracker(object):
                 self.msg = self.kick()
 
             # if there is a cv.image
-        #    if not self.cv_image is None:
+            if not self.cv_image is None:
                 
                 # debug text
             #    print("\n self.cv_image:")
             #    print(self.cv_image.shape)
                 
                 # display self.cv_image
-            #    cv2.imshow('video_window', self.cv_image)
-            #    cv2.waitKey(5)
+                cv2.imshow('video_window', self.cv_image)
+                cv2.waitKey(5)
 
             if not self.ball_binary_image is None:
                 # debug text
@@ -174,7 +174,9 @@ class BallTracker(object):
                 # display the ball filter image
                 cv2.imshow('ball filter',self.ball_binary_image)
                 cv2.waitKey(5)        
-
+            
+            #temporary code to stop the robot
+            self.msg = Twist(Vector3(0,0,0),Vector3(0,0,0))            
 
             self.pub.publish(self.msg)
 
