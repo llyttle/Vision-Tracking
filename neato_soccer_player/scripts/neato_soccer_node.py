@@ -212,6 +212,7 @@ class BallTracker(object):
 
         # if the ball is farther than 2 meters, go towards the ball
         if self.ball_pos_data[1] > 2:
+<<<<<<< HEAD
 =======
 <<<<<<< HEAD
 =======
@@ -220,6 +221,8 @@ class BallTracker(object):
         error_margin = 1        #margin that the robot will consider "close enough" of straight forward
         if self.ball_pos_data[0] != None:
 >>>>>>> Combine kick and face_ball functions and organize arbiter
+=======
+>>>>>>> fix extra merge issues
             if self.ball_pos_data[0] < 0-error_margin or self.ball_pos_data[0] > 0+error_margin:
                 angvel = self.ball_pos_data[0]/50
             else:
@@ -278,6 +281,7 @@ class BallTracker(object):
         return msg
 >>>>>>> Find linup position in map frame
 
+<<<<<<< HEAD
     def get_Goal(self, odom_data):
         """This function finds the position of the goal
         
@@ -435,6 +439,8 @@ class BallTracker(object):
             self.position_neato()
             self.msg = self.kick_ball()
 
+=======
+>>>>>>> fix extra merge issues
     def run(self):
         """ The main run loop """
         r = rospy.Rate(5)
@@ -494,7 +500,7 @@ class BallTracker(object):
 =======
 >>>>>>> Clean up code
             # if there is a cv.image
-        #    if not self.cv_image is None:
+            if not self.cv_image is None:
                 
                 # display self.cv_image
                 cv2.imshow('video_window', self.cv_image)
