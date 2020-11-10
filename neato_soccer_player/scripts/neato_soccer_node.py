@@ -34,9 +34,8 @@ class BallTracker(object):
 
         #ceate publishers and subscribers
         #create a subscriber to the camera topic
-        rospy.Subscriber(self.scan_topic, LaserScan, self.pixel_to_degrees)
-
         rospy.Subscriber(image_topic, Image, self.process_image_msg)
+        rospy.Subscriber(self.scan_topic, LaserScan, self.process_laser_msg)
         #create a publisher to drive the robot
         self.pub = rospy.Publisher('/cmd_vel', Twist, queue_size=10)
         self.lidar_array = []
@@ -51,8 +50,10 @@ class BallTracker(object):
         #create an open cv visualization window
         cv2.namedWindow('video_window')
         #create a call back function for when the image in the window is clicked on
-    #    cv2.setMouseCallback('video_window', self.process_mouse_event)
-
+        cv2.setMouseCallback('video_window', self.process_mouse_event)
+        
+        self.laser_scan_data = None
+    
     def process_mouse_event(self, event, x,y,flags,param):
         """ A function that is called when the mouse clicks on the open camera window. Function displays a popup with text describing the color value of the camera pixel you clicked on"""
         #create a notification window
@@ -63,56 +64,91 @@ class BallTracker(object):
         cv2.imshow('image_info', image_info_window)
         cv2.waitKey(5)
 
+    def process_laser_msg(self, msg):
+        """process laser scann images from ROS and stash them in an atrivute called laser_scan"""
+        self.laser_scan_data = msg.ranges
+
     def process_image_msg(self, msg):
         """ Process image messages from ROS and stash them in an attribute
             called cv_image. """
         self.cv_image = self.bridge.imgmsg_to_cv2(msg, desired_encoding="bgr8")
 
-    def process_image(self):
-        """A function which processes self.cv_image to retrieve important information. It filters self.cv image into binary images which can be used for processing in decision and navigational algorithms. And it retrieves image locations of objects in the scene from the images"""
-        self.ball_binary_image = cv2.inRange(self.cv_image, (0,0,80), (20,20,255))
+    def find_object_in_binary_image(self, binary_image):
+        moments = cv2.moments(binary_image)
 
 
-        #process the binary image to get the balls position
-        moments = cv2.moments(self.ball_binary_image)
+        if cv2.countNonZero(binary_image) == 0:
+            found = False
+        else:
+            found = True
+
         if moments['m00'] != 0:
 
             #find the center x and y cords
-            self.center_x, self.center_y = moments['m10']/moments['m00'], moments['m01']/moments['m00']
+            center_x = moments['m10']/moments['m00']
+            center_y = moments['m01']/moments['m00']
+    
+            return (found,center_x, center_y)
         
-        if cv2.countNonZero(self.ball_binary_image) == 0:
-            self.found_object = False
-        else:
-            self.found_object = True
+        return (found, None ,None)
 
-    def pixel_to_degrees(self, msg):
+    def process_image(self):
+        """A function which processes self.cv_image to retrieve important information. It filters self.cv image into binary images which can be used for processing in decision and navigational algorithms. And it retrieves image locations of objects in the scene from the images"""
+        self.ball_binary_image = cv2.inRange(self.cv_image, (0,0,80), (20,20,255))
+        self.blue_goal_binary_image = cv2.inRange(self.cv_image,(95,19,19),(110,27,27))
+        self.yellow_goal_binary_image = cv2.inRange(self.cv_image,(40,220,220),(53,240,240))
+
+        #find the position of the ball 
+        #find the image coordinates of the ball
+        found_ball_data = self.find_object_in_binary_image(self.ball_binary_image)
+        #convert the image coordinates into an angle and a distance relative to the bot
+        self.ball_pos_data = self.pixel_to_degrees(found_ball_data)        
+
+        #find the position of the blue goal
+        found_blue_goal_data = self.find_object_in_binary_image(self.blue_goal_binary_image)
+        self.blue_goal_pos_data = self.pixel_to_degrees(found_blue_goal_data)
+        
+        #find the position of the yellow goal
+        found_yellow_goal_data = self.find_object_in_binary_image(self.yellow_goal_binary_image)
+        self.yellow_goal_pos_data = self.pixel_to_degrees(found_yellow_goal_data)
+
+        print("ball:",self.ball_pos_data)
+        print("blue_goal:", self.blue_goal_pos_data)
+        print("yellow_goal:", self.yellow_goal_pos_data)        
+
+        if self.ball_pos_data[2] == True:
+            self.last_ball_direction = -(found_ball_data[1]-300)/abs(found_ball_data[1]-300)
+        
+    def pixel_to_degrees(self, found_object_data):
         """A function to convert an object's location in a pixel image to an angle and distance in respect to the Neato"""
-        vanish_angle = math.radians(43)                 # widest angle in image frame
-        f = -300/math.tan(vanish_angle)                 # variable representing camera focal distance
 
-        if self.found_object == True:
-            theta_rad = math.atan((self.center_x-300)/f)    # theta = atan(x/f)
+        #widest angle in image frame
+        vanish_angle = math.radians(43)
+        #variable representing camera focal distance
+        f = -300/math.tan(vanish_angle)
+
+        if found_object_data[0] == True:
+            theta_rad = math.atan((found_object_data[1]-300)/f)    # theta = atan(x/f)
             theta = int(math.degrees(theta_rad))
-
-            distance = msg.ranges[theta]               # ping degrees of center of object to find distance
             
-            self.ball_pos = (theta, distance)
+            if self.laser_scan_data != None:
+                #ping the object to find the distance in the laser scan
+                distance = self.laser_scan_data[theta]             
+            else:
+                distance = 100
+            obj_pos = (theta, distance)
             
-            print("Theta =      ", self.ball_pos[0])
-            print("Distance =   ", self.ball_pos[1])
-
-            self.last_ball_direction = -(self.center_x-300)/abs(self.center_x-300) 
         else:
-            self.ball_pos = None
-            print(self.ball_pos)
+            obj_pos = (None,None)
 
         print("-----------------------------------")
+        return (obj_pos[0],obj_pos[1],found_object_data[0])        
 
     def face_ball(self):
         error_margin = 1        #margin that the robot will consider "close enough" of straight forward
-        if self.ball_pos != None:
-            if self.ball_pos[0] < 0-error_margin or self.ball_pos[0] > 0+error_margin:
-                turn = self.ball_pos[0]/50
+        if self.ball_pos_data[0] != None:
+            if self.ball_pos_data[0] < 0-error_margin or self.ball_pos_data[0] > 0+error_margin:
+                turn = self.ball_pos_data[0]/50
             else:
                 turn = 0
             speed = 1
@@ -148,23 +184,20 @@ class BallTracker(object):
             # update the filtered binary images
             self.process_image()
             
-            self.pixel_to_degrees
-            
-            if self.ball_pos == None or self.ball_pos[1] > 2:
+            if self.ball_pos_data[1] == None or self.ball_pos_data[0] == None or self.ball_pos_data[1] > 2:
                 self.msg = self.face_ball()
             else:
                 self.msg = self.kick()
 
-            # if there is a cv.image
-        #    if not self.cv_image is None:
+            if not self.cv_image is None:
                 
                 # debug text
             #    print("\n self.cv_image:")
             #    print(self.cv_image.shape)
                 
                 # display self.cv_image
-            #    cv2.imshow('video_window', self.cv_image)
-            #    cv2.waitKey(5)
+                cv2.imshow('video_window', self.cv_image)
+                cv2.waitKey(5)
 
             if not self.ball_binary_image is None:
                 # debug text
@@ -172,9 +205,9 @@ class BallTracker(object):
             #    print(self.ball_binary_image.shape)
                 
                 # display the ball filter image
-                cv2.imshow('ball filter',self.ball_binary_image)
+                cv2.imshow('ball_filter',self.ball_binary_image)
                 cv2.waitKey(5)        
-
+            
 
             self.pub.publish(self.msg)
 
