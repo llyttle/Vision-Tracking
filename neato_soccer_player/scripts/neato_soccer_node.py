@@ -18,18 +18,6 @@ import math
 import numpy as np
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
 
-class Helper_Functions(object):
-    def cart2pol(self, x, y):
-        """helper function for converting cartesian coordinates to polar coordinates"""
-        theta = math.atan2(y, x)
-        d = np.hypot(x, y)
-        return (theta, d)
-    def pol2cart(self, theta, d):
-        """helper function for converting cartesian coordinates to polar coordinates"""
-        x = d * math.cos(theta)
-        y = d * math.sin(theta)
-        return np.array([x, y])
-
 class BallTracker(object):
     """ The BallTracker is a Python object that encompasses a ROS node 
         that can process images from the camera and search for a ball within.
@@ -39,26 +27,18 @@ class BallTracker(object):
     def __init__(self, image_topic):
         """ Initialize the ball tracker """
         rospy.init_node('ball_tracker')
-        #the latest image from the camera
+        
+        # the latest image from the camera
         self.cv_image = None                  
         self.scan_topic = "scan"      
-        #used to convert ROS messages to OpenCV
+        # used to convert ROS messages to OpenCV
         self.bridge = CvBridge()
 
-        self.goal_in_sight = False
-        
-        self.found_object = False
-
-        self.last_ball_direction = 1
-
-        # Initialize helper functions class
-        self.Convert = Helper_Functions()
-        
-        #ceate publishers and subscribers
+        # ceate publishers
         rospy.Subscriber(self.scan_topic, LaserScan, self.process_laser_msg)     # create a subscriber to read LIDAR data
         rospy.Subscriber(image_topic, Image, self.process_image_msg)            # create a subscriber to the camera topic
         rospy.Subscriber('/odom', Odometry, self.get_odom)                   # create a subscriber to get odom position
-
+        # create subscribers
         self.pub = rospy.Publisher('/cmd_vel', Twist, queue_size=10)            # create a publisher to drive the robot
 
         #create an open cv visualization window
@@ -66,9 +46,80 @@ class BallTracker(object):
         #create a call back function for when the image in the window is clicked on
         cv2.setMouseCallback('video_window', self.process_mouse_event)
         
+        self.goal_in_sight = False
+        self.found_object = False
+        self.last_ball_direction = 1
         self.laser_scan_data = None
+
+#HELPER FUNCTIONS ==============================================================================================================
+#===============================================================================================================================
+    def cart2pol(self, x, y):
+        """helper function for converting cartesian coordinates to polar coordinates"""
+        theta = math.atan2(y, x)
+        d = np.hypot(x, y)
+        return (theta, d)
     
-    #    cv2.setMouseCallback('video_window', self.process_mouse_event)
+    def pol2cart(self, theta, d):
+        """helper function for converting cartesian coordinates to polar coordinates"""
+        x = d * math.cos(theta)
+        y = d * math.sin(theta)
+        return np.array([x, y])
+    
+    def get_odom(self, odom_data):
+        pose = odom_data.pose.pose
+        orientation_list = [pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w]
+        yaw = euler_from_quaternion(orientation_list)[2]
+        xy_theta_position = np.array([pose.position.x, pose.position.y, yaw])
+
+        self.robot_position = xy_theta_position #+ xy_theta_adjust
+
+    def neato2map(self, theta, distance):
+        theta_robot = self.robot_position[2]
+        neato2map_matrix = np.array([[math.cos(theta_robot), -math.sin(theta_robot), self.robot_position[0]],
+                                     [math.sin(theta_robot),  math.cos(theta_robot), self.robot_position[1]],
+                                     [0,                      0,                     1]])
+        point_vector = np.append(self.pol2cart(theta, distance), 1)
+        point_map_3D = neato2map_matrix.dot(point_vector)
+        point_map = point_map_3D[:-1]
+
+        return point_map
+
+    def map2neato(self, x, y):
+        theta_robot = self.robot_position[2]
+        neato2map_matrix = np.array([[math.cos(theta_robot), -math.sin(theta_robot), self.robot_position[0]],
+                                     [math.sin(theta_robot),  math.cos(theta_robot), self.robot_position[1]],
+                                     [0,                      0,                     1]])
+        map2neato_matrix = np.linalg.inv(neato2map_matrix)
+        point_vector = np.array([x, y, 1])
+        point_neato_3D = map2neato_matrix.dot(point_vector)
+        theta, distance = self.cart2pol(point_neato_3D[0], point_neato_3D[1])
+        point_neato = np.array([theta, distance])
+
+        return point_neato
+
+    def pixel_to_degrees(self, found_object_data):
+        """A function to convert an object's location in a pixel image to an angle and distance in respect to the Neato"""
+        #widest angle in image frame
+        vanish_angle = math.radians(43)
+        #variable representing camera focal distance
+        f = -300/math.tan(vanish_angle)
+
+        if found_object_data[0] == True:
+            theta_rad = math.atan((found_object_data[1]-300)/f)    # theta = atan(x/f)
+            theta = int(math.degrees(theta_rad))
+            
+            if self.laser_scan_data != None:
+                #ping the object to find the distance in the laser scan
+                distance = self.laser_scan_data[theta]             
+            else:
+                distance = 100
+            obj_pos = (theta, distance)
+        else:
+            obj_pos = (None,None)
+
+        return (obj_pos[0],obj_pos[1],found_object_data[0])        
+#===============================================================================================================================
+#===============================================================================================================================
 
     def process_mouse_event(self, event, x,y,flags,param):
         """ A function that is called when the mouse clicks on the open camera window. Function displays a popup with text describing the color value of the camera pixel you clicked on"""
@@ -127,36 +178,12 @@ class BallTracker(object):
         found_yellow_goal_data = self.find_object_in_binary_image(self.yellow_goal_binary_image)
         self.yellow_goal_pos_data = self.pixel_to_degrees(found_yellow_goal_data)
 
-        print("ball:",self.ball_pos_data)
-        print("blue_goal:", self.blue_goal_pos_data)
-        print("yellow_goal:", self.yellow_goal_pos_data)        
+    #    print("ball:",self.ball_pos_data)
+    #    print("blue_goal:", self.blue_goal_pos_data)
+    #    print("yellow_goal:", self.yellow_goal_pos_data)        
 
         if self.ball_pos_data[2] == True:
             self.last_ball_direction = -(found_ball_data[1]-300)/abs(found_ball_data[1]-300)
-        
-    def pixel_to_degrees(self, found_object_data):
-        """A function to convert an object's location in a pixel image to an angle and distance in respect to the Neato"""
-
-        #widest angle in image frame
-        vanish_angle = math.radians(43)
-        #variable representing camera focal distance
-        f = -300/math.tan(vanish_angle)
-
-        if found_object_data[0] == True:
-            theta_rad = math.atan((found_object_data[1]-300)/f)    # theta = atan(x/f)
-            theta = int(math.degrees(theta_rad))
-            
-            if self.laser_scan_data != None:
-                #ping the object to find the distance in the laser scan
-                distance = self.laser_scan_data[theta]             
-            else:
-                distance = 100
-            obj_pos = (theta, distance)
-        else:
-            obj_pos = (None,None)
-
-        print("-----------------------------------")
-        return (obj_pos[0],obj_pos[1],found_object_data[0])        
 
     def search_for_ball(self):
         angvel = self.last_ball_direction
@@ -165,14 +192,6 @@ class BallTracker(object):
         msg = Twist(Vector3(linvel,0,0), Vector3(0,0,angvel))
 
         return msg
-    
-    def get_odom(self, odom_data):
-        pose = odom_data.pose.pose
-        orientation_list = [pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w]
-        yaw = euler_from_quaternion(orientation_list)[2]
-        xy_theta_position = np.array([pose.position.x, pose.position.y, yaw])
-
-        self.robot_position = xy_theta_position #+ xy_theta_adjust
 
     def position_neato(self):
         """ Find where the neato needs to be to kick the ball into the goal and drive to that position.
@@ -180,27 +199,27 @@ class BallTracker(object):
         """
         # Position of Goal and Ball in map
         goal_map = np.array([8, 0])
-        
-        theta_ball = self.robot_position[2]
-        neato2map_matrix = np.array([[math.cos(theta_ball), -math.sin(theta_ball), self.robot_position[0]],
-                                     [math.sin(theta_ball),  math.cos(theta_ball), self.robot_position[1]],
-                                     [0,                0,                         1]])
+        ball_map = self.neato2map(math.radians(self.ball_pos_data[0]), self.ball_pos_data[1]+.5)
 
-        ball_matrix = np.append(self.Convert.pol2cart(math.radians(self.ball_pos_data[0]), self.ball_pos_data[1]), 1)
-        ball_map_3D = neato2map_matrix.dot(ball_matrix)
-        ball_map = ball_map_3D[:-1]
-        
-        # Vector from goal to the ball
-        goal2ball = ball_map - goal_map
-        # Extending the vector from the goal to the ball to get lineup position
-        theta, d = self.Convert.cart2pol(goal2ball[0], goal2ball[1])
+        goal2ball = ball_map - goal_map                                 # Vector from goal to the ball
+        theta, d = self.cart2pol(goal2ball[0], goal2ball[1])
+        desired_position_from_goal = self.pol2cart(theta, d+2)  # Extending the vector from the goal to the ball
+        desired_position_map = goal_map + desired_position_from_goal    # defining linup position in terms of the map, not the goal
 
-        desired_position_from_goal = self.Convert.pol2cart(theta, d+2)
+        # Desired_position in terms of the neato
+        desired_position = self.map2neato(desired_position_map[0], desired_position_map[1])
+        print(desired_position)
 
-        # defining linup position in terms of the map, not the goal
-        desired_position_map = goal_map + desired_position_from_goal
+        #move neato to desired_position
+        if desired_position[1] > .3:
+            angvel = math.degrees(desired_position[0])/30
+            linvel = 1
+        else:
+            angvel = 0
+            linvel = 0
 
-        print(desired_position_map)
+        msg = Twist(Vector3(linvel,0,0), Vector3(0,0,angvel))
+        return msg
 
     def kick_ball(self):
         error_margin = 1        # Margin that the robot will consider "close enough" of straight forward
@@ -208,7 +227,7 @@ class BallTracker(object):
         # if the ball is farther than 2 meters, go towards the ball
         if self.ball_pos_data[1] > 2:
             if self.ball_pos_data[0] < 0-error_margin or self.ball_pos_data[0] > 0+error_margin:
-                angvel = self.ball_pos_data[0]/50
+                angvel = self.ball_pos_data[0]/30
             else:
                     angvel = 0
             linvel = 1
@@ -243,35 +262,33 @@ class BallTracker(object):
             #self.msg = self.position_neato()
         #    pass
         else: #self.ball_pos_data != None and self.in_position == True:       # """in position""":
-            self.position_neato()
-            self.msg = self.kick_ball()
-
+            self.msg = self.position_neato()
+        
+            #self.msg = self.kick_ball()
+        
     def run(self):
         """ The main run loop """
         r = rospy.Rate(5)
         while not rospy.is_shutdown():
             
-            # Code to run constantly
-            self.process_image()        # update the filtered binary images
+            # update the filtered binary images
+            self.process_image()
 
             # Arbiter to controll behaviors
             self.Arbiter()
             
-            # if there is a cv.image
+            # display self.cv_image
             if not self.cv_image is None:
-                
-                # display self.cv_image
                 cv2.imshow('video_window', self.cv_image)
                 cv2.waitKey(5)
 
+            # display the ball filter image
             if not self.ball_binary_image is None:
-                # display the ball filter image
                 cv2.imshow('ball_filter',self.ball_binary_image)
                 cv2.waitKey(5)        
             
             self.pub.publish(self.msg)
 
-            # start out not issuing any motor commands
             r.sleep()
 
 if __name__ == '__main__':
