@@ -69,11 +69,6 @@ class BallTracker(object):
         self.laser_scan_data = None
     
     #    cv2.setMouseCallback('video_window', self.process_mouse_event)
-    def cart2pol(self, x, y):
-        """helper function for converting cartesian coordinates to polar coordinates"""
-        theta = math.atan2(y, x)
-        d = np.hypot(x, y)
-        return (theta, d)
 
     def process_mouse_event(self, event, x,y,flags,param):
         """ A function that is called when the mouse clicks on the open camera window. Function displays a popup with text describing the color value of the camera pixel you clicked on"""
@@ -158,6 +153,7 @@ class BallTracker(object):
                 distance = 100
             obj_pos = (theta, distance)
             
+<<<<<<< HEAD
         else:
             obj_pos = (None,None)
 
@@ -339,48 +335,61 @@ class BallTracker(object):
         # positions of each goal in map frame (x, y)
         goal1_pos = np.array([[8, 2],[8, -2]])
         goal2_pos = np.array([[-8, 2],[-8, -2]])
+=======
+        #    print("Theta =      ", self.ball_pos[0])
+        #    print("Distance =   ", self.ball_pos[1])
 
-        # finding the current position of the robot (x, y, theta)
+            self.last_ball_direction = -(self.center_x-300)/abs(self.center_x-300) 
+        else:
+            self.ball_pos = None
+        #    print(self.ball_pos)
+
+        #print("-----------------------------------")
+
+    def search_for_ball(self):
+        angvel = self.last_ball_direction
+        linvel = 0
+>>>>>>> Find linup position in map frame
+
+        msg = Twist(Vector3(linvel,0,0), Vector3(0,0,angvel))
+
+        return msg
+    
+    def get_odom(self, odom_data):
         pose = odom_data.pose.pose
         orientation_list = [pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w]
         yaw = euler_from_quaternion(orientation_list)[2]
         xy_theta_position = np.array([pose.position.x, pose.position.y, yaw])
 
-        if self.goal_in_sight == True:
-            # TODO: put Tim's code here
+        self.robot_position = xy_theta_position #+ xy_theta_adjust
 
-            # TODO: maybe re-define the position of the robot when the real goal is in sight.
-            """ if last_goal_position != current_goal_position:
-                    current_goal_position_xy_theta = 
-                    last_goal_position_xy_theta = 
-                    xy_theta_adjust = current_goal_position_xy_theta - last_goal_position_xy_theta
-            """
-            pass
+    def position_neato(self):
+        """ Find where the neato needs to be to kick the ball into the goal and drive to that position.
+            This function requires a (theta, d) vector for the desired goal and for the ball
+        """
+        # Position of Goal and Ball in map
+        goal_map = np.array([8, 0])
+        
+        theta_ball = self.robot_position[2]
+        neato2map_matrix = np.array([[math.cos(theta_ball), -math.sin(theta_ball), self.robot_position[0]],
+                                     [math.sin(theta_ball),  math.cos(theta_ball), self.robot_position[1]],
+                                     [0,                0,                         1]])
 
-        elif self.goal_in_sight == False:
-            adjusted_position = xy_theta_position #+ xy_theta_adjust
+        ball_matrix = np.append(self.Convert.pol2cart(math.radians(self.ball_pos[0]), self.ball_pos[1]), 1)
+        ball_map_3D = neato2map_matrix.dot(ball_matrix)
+        ball_map = ball_map_3D[:-1]
+        
+        # Vector from goal to the ball
+        goal2ball = ball_map - goal_map
+        # Extending the vector from the goal to the ball to get lineup position
+        theta, d = self.Convert.cart2pol(goal2ball[0], goal2ball[1])
 
-            # Applying X, Y transformation
-            theta1, d1 = self.cart2pol(goal1_pos[0,0]-adjusted_position[0], goal1_pos[0,1]-adjusted_position[1])
-            theta2, d2 = self.cart2pol(goal1_pos[1,0]-adjusted_position[0], goal1_pos[1,1]-adjusted_position[1])
-            theta3, d3 = self.cart2pol(goal2_pos[0,0]-adjusted_position[0], goal2_pos[0,1]-adjusted_position[1])
-            theta4, d4 = self.cart2pol(goal2_pos[1,0]-adjusted_position[0], goal2_pos[1,1]-adjusted_position[1])
+        desired_position_from_goal = self.Convert.pol2cart(theta, d+2)
 
-            # Applying theta rotation
-            goal1_vec = ([[math.degrees(theta1 + adjusted_position[2]), d1], [math.degrees(theta2 + adjusted_position[2]), d2]])
-            goal2_vec = ([[math.degrees(theta3 + adjusted_position[2]), d3], [math.degrees(theta4 + adjusted_position[2]), d4]])
+        # defining linup position in terms of the map, not the goal
+        desired_position_map = goal_map + desired_position_from_goal
 
-            print(goal1_vec)
-            print(goal2_vec)
-
-    def search_for_ball(self):
-        angvel = self.last_ball_direction
-        linvel = 0
-
-        msg = Twist(Vector3(linvel,0,0), Vector3(0,0,angvel))
-
-        return msg
-
+        print(desired_position_map)
 
     def kick_ball(self):
         error_margin = 1        # Margin that the robot will consider "close enough" of straight forward
@@ -417,11 +426,13 @@ class BallTracker(object):
             if ball -- position behind ball
             if in position -- kick the ball
         """
-        if self.ball_pos == None and self.positioning == False:
+        if self.ball_pos == None: #and self.positioning == False:
             self.msg = self.search_for_ball()
-        #elif self.ball_pos == True or self.positioning == True:
-            #got to position
-        else:       # """in position""":
+        #elif self.ball_pos != None: 
+            #self.msg = self.position_neato()
+        #    pass
+        else: #self.ball_pos != None and self.in_position == True:       # """in position""":
+            self.position_neato()
             self.msg = self.kick_ball()
 
     def run(self):
@@ -454,11 +465,14 @@ class BallTracker(object):
 =======
             # Code to run constantly
             self.process_image()        # update the filtered binary images
+<<<<<<< HEAD
             self.get_Goal               # get (theta, distance) of the goal
 <<<<<<< HEAD
             self.pixel_to_degrees       # if there is a ball find position and update self.ball_pos
 >>>>>>> Clean up code
 =======
+=======
+>>>>>>> Find linup position in map frame
             self.get_Ball               # if there is a ball find position and update self.ball_pos
 >>>>>>> Combine kick and face_ball functions and organize arbiter
 
