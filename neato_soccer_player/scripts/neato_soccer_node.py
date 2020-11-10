@@ -96,9 +96,12 @@ class BallTracker(object):
         moments = cv2.moments(binary_image)
 
         #process the binary image to get the balls position
-        moments = cv2.moments(self.ball_binary_image)
-        if moments['m00'] != 0:
+        if cv2.countNonZero(binary_image) == 0:
+            found = False
+        else:
+            found = True
 
+        if moments['m00'] != 0:
             #find the center x and y cords
             center_x = moments['m10']/moments['m00']
             center_y = moments['m01']/moments['m00']
@@ -187,7 +190,7 @@ class BallTracker(object):
                                      [math.sin(theta_ball),  math.cos(theta_ball), self.robot_position[1]],
                                      [0,                0,                         1]])
 
-        ball_matrix = np.append(self.Convert.pol2cart(math.radians(self.ball_pos[0]), self.ball_pos[1]), 1)
+        ball_matrix = np.append(self.Convert.pol2cart(math.radians(self.ball_pos_data[0]), self.ball_pos_data[1]), 1)
         ball_map_3D = neato2map_matrix.dot(ball_matrix)
         ball_map = ball_map_3D[:-1]
         
@@ -207,9 +210,9 @@ class BallTracker(object):
         error_margin = 1        # Margin that the robot will consider "close enough" of straight forward
 
         # if the ball is farther than 2 meters, go towards the ball
-        if self.ball_pos[1] > 2:
-            if self.ball_pos[0] < 0-error_margin or self.ball_pos[0] > 0+error_margin:
-                    angvel = self.ball_pos[0]/50
+        if self.ball_pos_data[1] > 2:
+            if self.ball_pos_data[0] < 0-error_margin or self.ball_pos_data[0] > 0+error_margin:
+                angvel = self.ball_pos_data[0]/50
             else:
                     angvel = 0
             linvel = 1
@@ -238,12 +241,12 @@ class BallTracker(object):
             if ball -- position behind ball
             if in position -- kick the ball
         """
-        if self.ball_pos == None: #and self.positioning == False:
+        if self.ball_pos_data[2] == False: #and self.positioning == False:
             self.msg = self.search_for_ball()
-        #elif self.ball_pos != None: 
+        #elif self.ball_pos_data != None: 
             #self.msg = self.position_neato()
         #    pass
-        else: #self.ball_pos != None and self.in_position == True:       # """in position""":
+        else: #self.ball_pos_data != None and self.in_position == True:       # """in position""":
             self.position_neato()
             self.msg = self.kick_ball()
 
@@ -259,7 +262,7 @@ class BallTracker(object):
             self.Arbiter()
             
             # if there is a cv.image
-        #    if not self.cv_image is None:
+            if not self.cv_image is None:
                 
                 # display self.cv_image
                 cv2.imshow('video_window', self.cv_image)
