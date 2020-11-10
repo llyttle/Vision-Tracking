@@ -2323,9 +2323,9 @@
             <shader type='pixel'>
               <normal_map>__default__</normal_map>
             </shader>
-            <ambient>0.973 0.953 0.208 1</ambient>
-            <diffuse>0.973 0.953 0.208 1</diffuse>
-            <specular>0.973 0.953 0.208 1</specular>
+            <ambient>0.208 0.208 0.973 1</ambient>
+            <diffuse>0.208 0.208 0.973 1</diffuse>
+            <specular>0.208 0.208 0.973 1</specular>
             <emissive>0 0 0 1</emissive>
           </material>
           <pose>0 0 0 0 -0 0</pose>
@@ -2714,9 +2714,9 @@
             <shader type='pixel'>
               <normal_map>__default__</normal_map>
             </shader>
-            <ambient>0.973 0.953 0.208 1</ambient>
-            <diffuse>0.973 0.953 0.208 1</diffuse>
-            <specular>0.973 0.953 0.208 1</specular>
+            <ambient>0.973 0.973 0.973 1</ambient>
+            <diffuse>0.973 0.973 0.973 1</diffuse>
+            <specular>0.973 0.973 0.973	 1</specular>
             <emissive>0 0 0 1</emissive>
           </material>
           <pose>0 0 0 0 -0 0</pose>
@@ -3495,9 +3495,9 @@
             <shader type='pixel'>
               <normal_map>__default__</normal_map>
             </shader>
-            <ambient>0.973 0.953 0.208 1</ambient>
-            <diffuse>0.973 0.953 0.208 1</diffuse>
-            <specular>0.973 0.953 0.208 1</specular>
+            <ambient>0.208 0.208 0.973 1</ambient>
+            <diffuse>0.208 0.208 0.973 1</diffuse>
+            <specular>0.208 0.208 0.973 1</specular>
             <emissive>0 0 0 1</emissive>
           </material>
           <pose>0 0 0 0 -0 0</pose>
@@ -4184,9 +4184,9 @@
             <shader type='pixel'>
               <normal_map>__default__</normal_map>
             </shader>
-            <ambient>0.973 0.953 0.208 1</ambient>
-            <diffuse>0.973 0.953 0.208 1</diffuse>
-            <specular>0.973 0.953 0.208 1</specular>
+            <ambient>0.973 0.973 0.973 1</ambient>
+            <diffuse>0.973 0.973 0.973 1</diffuse>
+            <specular>0.973 0.973 0.973 1</specular>
             <emissive>0 0 0 1</emissive>
           </material>
           <pose>0 0 0 0 -0 0</pose>
