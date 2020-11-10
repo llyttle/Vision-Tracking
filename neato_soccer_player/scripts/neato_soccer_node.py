@@ -53,6 +53,8 @@ class BallTracker(object):
 
         #create list to hold ball position (theta, distance)
         self.ball_pos = (0, 0)
+
+        self.Convert = Helper_Functions()
         
         #ceate publishers and subscribers
         rospy.Subscriber(self.scan_topic, LaserScan, self.process_laser_msg)     # create a subscriber to read LIDAR data
@@ -70,11 +72,6 @@ class BallTracker(object):
         self.laser_scan_data = None
     
     #    cv2.setMouseCallback('video_window', self.process_mouse_event)
-    def cart2pol(self, x, y):
-        """helper function for converting cartesian coordinates to polar coordinates"""
-        theta = math.atan2(y, x)
-        d = np.hypot(x, y)
-        return (theta, d)
 
     def process_mouse_event(self, event, x,y,flags,param):
         """ A function that is called when the mouse clicks on the open camera window. Function displays a popup with text describing the color value of the camera pixel you clicked on"""
@@ -99,9 +96,12 @@ class BallTracker(object):
         moments = cv2.moments(binary_image)
 
         #process the binary image to get the balls position
-        moments = cv2.moments(self.ball_binary_image)
-        if moments['m00'] != 0:
+        if cv2.countNonZero(binary_image) == 0:
+            found = False
+        else:
+            found = True
 
+        if moments['m00'] != 0:
             #find the center x and y cords
             center_x = moments['m10']/moments['m00']
             center_y = moments['m01']/moments['m00']
@@ -191,7 +191,7 @@ class BallTracker(object):
                                      [math.sin(theta_ball),  math.cos(theta_ball), self.robot_position[1]],
                                      [0,                0,                         1]])
 
-        ball_matrix = np.append(self.Convert.pol2cart(math.radians(self.ball_pos[0]), self.ball_pos[1]), 1)
+        ball_matrix = np.append(self.Convert.pol2cart(math.radians(self.ball_pos_data[0]), self.ball_pos_data[1]), 1)
         ball_map_3D = neato2map_matrix.dot(ball_matrix)
         ball_map = ball_map_3D[:-1]
         
@@ -211,7 +211,7 @@ class BallTracker(object):
         error_margin = 1        # Margin that the robot will consider "close enough" of straight forward
 
         # if the ball is farther than 2 meters, go towards the ball
-        if self.ball_pos_data[0] != None:
+        if self.ball_pos_data[1] > 2:
             if self.ball_pos_data[0] < 0-error_margin or self.ball_pos_data[0] > 0+error_margin:
                 angvel = self.ball_pos_data[0]/50
             else:
@@ -242,64 +242,14 @@ class BallTracker(object):
             if ball -- position behind ball
             if in position -- kick the ball
         """
-        if self.ball_pos == None: #and self.positioning == False:
+        if self.ball_pos_data[2] == False: #and self.positioning == False:
             self.msg = self.search_for_ball()
-        #elif self.ball_pos != None: 
+        #elif self.ball_pos_data != None: 
             #self.msg = self.position_neato()
         #    pass
-        else: #self.ball_pos != None and self.in_position == True:       # """in position""":
+        else: #self.ball_pos_data != None and self.in_position == True:       # """in position""":
             self.position_neato()
             self.msg = self.kick_ball()
-
-    def get_Goal(self, odom_data):
-        """This function finds the position of the goal
-        
-        if goal in sight:
-            goal_position = TIMS CODE
-            adjust robot position for any error
-        
-        elif goal not in sight:
-            goal_position = ROBOT_TRANSFORM(previous_goal_position)
-        """
-        #positions of each goal in map frame (x, y)
-        goal1_pos = (8, 0)
-        goal2_pos = (-8, 0)
-
-        #finding the current position of the robot (x, y, theta)
-        pose = odom_data.pose.pose
-        orientation_list = [pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w]
-        yaw = euler_from_quaternion(orientation_list)[2]
-        xy_theta_position = np.array([pose.position.x, pose.position.y, yaw])
-
-        if self.goal_in_sight == True:
-            #TODO: put Tim's code here
-
-            #Re-defining the position of the robot when the real goal is in sight.
-            """ if last_goal_position != current_goal_position:
-                    current_goal_position_xy_theta = 
-                    last_goal_position_xy_theta = 
-                    xy_theta_adjust = current_goal_position_xy_theta - last_goal_position_xy_theta
-            """
-            pass
-
-        elif self.goal_in_sight == False:
-            adjusted_position = xy_theta_position #+ xy_theta_adjust
-
-            theta1, d1 = self.cart2pol(goal1_pos[0]-adjusted_position[0], goal1_pos[1]-adjusted_position[1])
-            theta2, d2 = self.cart2pol(goal2_pos[0]-adjusted_position[0], goal2_pos[1]-adjusted_position[1])
-
-            goal1_vec = (math.degrees(theta1 + adjusted_position[2]), d1)
-            goal2_vec = (math.degrees(theta2 - adjusted_position[2]), d2)
-
-            print(goal1_vec)
-            print(goal2_vec)
-
-    def Arbiter(self):
-        if self.ball_pos == None or self.ball_pos[1] > 2:
-            self.msg = self.face_ball()
-        else:
-            self.msg = self.kick()
-
 
     def run(self):
         """ The main run loop """
@@ -313,7 +263,7 @@ class BallTracker(object):
             self.Arbiter()
             
             # if there is a cv.image
-        #    if not self.cv_image is None:
+            if not self.cv_image is None:
                 
                 # display self.cv_image
                 cv2.imshow('video_window', self.cv_image)
