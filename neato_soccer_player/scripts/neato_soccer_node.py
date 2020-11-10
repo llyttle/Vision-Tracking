@@ -246,98 +246,11 @@ class BallTracker(object):
             self.position_neato()
             self.msg = self.kick_ball()
 
-    def search_for_ball(self):
-        angvel = self.last_ball_direction
-        linvel = 0
-
-        msg = Twist(Vector3(linvel,0,0), Vector3(0,0,angvel))
-
-        return msg
-    
-    def get_odom(self, odom_data):
-        pose = odom_data.pose.pose
-        orientation_list = [pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w]
-        yaw = euler_from_quaternion(orientation_list)[2]
-        xy_theta_position = np.array([pose.position.x, pose.position.y, yaw])
-
-        self.robot_position = xy_theta_position #+ xy_theta_adjust
-
-    def position_neato(self):
-        """ Find where the neato needs to be to kick the ball into the goal and drive to that position.
-            This function requires a (theta, d) vector for the desired goal and for the ball
-        """
-        # Position of Goal and Ball in map
-        goal_map = np.array([8, 0])
-        
-        theta_ball = self.robot_position[2]
-        neato2map_matrix = np.array([[math.cos(theta_ball), -math.sin(theta_ball), self.robot_position[0]],
-                                     [math.sin(theta_ball),  math.cos(theta_ball), self.robot_position[1]],
-                                     [0,                0,                         1]])
-
-        ball_matrix = np.append(self.Convert.pol2cart(math.radians(self.ball_pos_data[0]), self.ball_pos_data[1]), 1)
-        ball_map_3D = neato2map_matrix.dot(ball_matrix)
-        ball_map = ball_map_3D[:-1]
-        
-        # Vector from goal to the ball
-        goal2ball = ball_map - goal_map
-        # Extending the vector from the goal to the ball to get lineup position
-        theta, d = self.Convert.cart2pol(goal2ball[0], goal2ball[1])
-
-        desired_position_from_goal = self.Convert.pol2cart(theta, d+2)
-
-        # defining linup position in terms of the map, not the goal
-        desired_position_map = goal_map + desired_position_from_goal
-
-        print(desired_position_map)
-
-    def kick_ball(self):
-        error_margin = 1        # Margin that the robot will consider "close enough" of straight forward
-
-        # if the ball is farther than 2 meters, go towards the ball
-        if self.ball_pos_data[1] > 2:
-            if self.ball_pos_data[0] < 0-error_margin or self.ball_pos_data[0] > 0+error_margin:
-                    angvel = self.ball_pos_data[0]/50
-            else:
-                    angvel = 0
-            linvel = 1
-        # if the ball is closer than 2 meters, kick the ball
-        else:
-            # move at 10 m/s straight        
-            linvel = 10
-            angvel = 0
-            msg = Twist(Vector3(linvel,0,0), Vector3(0,0,angvel))
-            # send the message to the robot`
-            self.pub.publish(msg)
-
-            # move forward for 2 seconds
-            rospy.sleep(2.0)
-
-            # stop
-            linvel = 0
-
-        msg = Twist(Vector3(linvel,0,0), Vector3(0,0,angvel))
-
-        return msg
-    
-    def Arbiter(self):
-        """ Controller function for soccer player. Manages the following behaviors:
-            if no ball -- search for ball
-            if ball -- position behind ball
-            if in position -- kick the ball
-        """
-        if self.ball_pos_data[2] == False:
-            self.msg = self.search_for_ball()
-        #elif self.ball_pos_data != None: 
-            #self.msg = self.position_neato()
-        #    pass
-        else: #self.ball_pos_data != None and self.in_position == True:       # """in position""":
-            self.position_neato()
-            self.msg = self.kick_ball()
-
     def run(self):
         """ The main run loop """
         r = rospy.Rate(5)
         while not rospy.is_shutdown():
+            
             # Code to run constantly
             self.process_image()        # update the filtered binary images
 
@@ -356,7 +269,6 @@ class BallTracker(object):
                 cv2.imshow('ball_filter',self.ball_binary_image)
                 cv2.waitKey(5)        
             
-
             self.pub.publish(self.msg)
 
             # start out not issuing any motor commands
