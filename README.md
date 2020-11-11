@@ -42,33 +42,57 @@ The default behavior of the controller is that it tries to locate the ball and t
 
 [TODO: gif of bot looking for ball]
 
-The robot also starts with knowlege of where it is located in the map and so it keeps an internal notion of the location of the goals so it can locate them even if they are outside of the camera frame. If the robot sees a goal, it will use that information to update its estimated position in the map.
-
-'
+The robot also starts with knowlege of where it is located in the map and so it keeps an internal notion of the location of the goals so it can locate them even if they are outside of the camera frame.
 #### Positioning
 
-Once the ball was located, the neato needed to calculate where to go in order to bump the ball towards the goal. We decided to do these calculations in the map frame. Given the ball and odom_data, we created a transformer function to convert a poler coordinate in the base_link frame to a cartesian in the map frame. We also knew the position of each goal in the map, and decided that the center of each goal's opening would be the ideal spot to aim for. Looking at the image below, we used the vectors to the ball and goal from the robot to create a vector from the goal to the ball. This vector represented the direction the ball needed to travel to make a goal (albiet in the opposite direction). Extending this vector along it's trajectory allowed us to find the best position for the neato to be.
+Once the ball is located, the neato needs to calculate where to go in order to bump the ball towards the goal. We decided to do these calculations in the map frame. Given the ball and odom_data, we created a transformer function to convert a poler coordinate in the base_link frame to a cartesian in the map frame. We also knew the position of each goal in the map, and decided that the center of each goal's opening would be the ideal spot to aim for. Looking at the image below, we used the vectors to the ball and goal from the robot to create a vector from the goal to the ball. This vector represented the direction the ball needed to travel to make a goal (albiet in the opposite direction). Extending this vector along it's trajectory allowed us to find the best position for the neato to kick from.
 
-"illustration of vectors"
+"illustration of vectors"i
+
+The neato then travels to the calculated position and prepares itself to kick the ball.
+
+#### Kicking
+
+Once the neato has arrived at the desired kicking position it turns to center the ball in its camera view and moves into kicking range. To actually kick the ball the neato rams it at 3 m/s thus launching the ball in the desired trajectory.
+
+### Vision tracking
+
+Computer vision was used in this project to track the positioning of the ball. To simplify this process we used the open cv. python library. This python library contains some basic image processing tools to help so we did not have to reimplement all of our processes based on pixel correlations. 
+
+The bulk of our vision processing was used for tracking the ball, however we also implemented code which used the same process to Find the goals however we did not develop a solid method of determining the distance to the goal due to sensor limitations and so the computer vision identifying the goals was not used by the neato.
+ 
+### Image Filtering
+
+The first task was to identify the ball in the camera view. To help in this endeavor we colored the ball red, a color which was distinct from the environment. This allowed us to filter the image by color. If colors in the image were within a certain range of values in the Blue, Green, Red color spectrum they were labeled as being part of the ball or not part of the ball. This in tern created a 'binary image' all pixels which contained the ball were represented in white while all of the background pixels were represented in black.
+
+### 'Center of Mass' calculation to find image corddinates of the ball
+
+We then determined the location of the ball in the image by finding the 'center of mass' in image space of the white pixels in the image. Performing this calulation across each axis of the image allowed us to retrieve x,y cordinates in the image for the ball.
+
+### 
 
 ## Challenges
 
-#### Losing sight
+### Losing sight
 
 One of the largest drawbacks of using camera vision rather than LIDAR is its limited viewing angle. When looking for the ball and turning the robot, the ball often skipped in and out of frame before it was recognized by the color filter. An effective solution to this problem was utilizing variable speed control for turning the robot. More specifically, the angular speed of the robot was proportional to how centered the ball was in the image. Slowing the rotation as the ball reached the center both eliminated the skipping issue and resulted in faster centering.
 
 Another problem caused by the narrow window of the camera was keeping track of the ball when positioning the robot to kick it. Lining the neato up with the ball and the goal often required turning the neato away from the ball to head towards the more strategic position. However, many parts of our code relied upon knowing the ball's position and distance from the robot. Initially, this problem lead to the neato circling the ball, like it was too scared to leave it. Our state oriented Arbiter reduced this problem by ignoring these reliant functions until the neato made it to the lineup position.
 
-#### Incorporation with LIDAR
+### Incorporation with LIDAR
 
 Over the course of this project, we learned that both camera vision and LIDAR have their benefits and drawbacks. While the camera has a relatively narrow range of sight, the LIDAR has limited distance. One of the challenges in this project was combining the two to cover up for the other's weaknesses. For most of the project, the ball was considered 'defined' as long as it was in view of the camera. Being 'defined' triggered other functions, such as calculations for the best angle to kick it. Later we realized that, while a ball at the far end of the soccer field was easily visible to the camera, the LIDAR registered 'inf' untill the distance was under ten meters. Our solution to this was to further specify the conditions under which a function would be called. Defining these parameters was a meticulous and time consuming process.
 
 ## Future Improvements
 
-#### Ball Path Estimation
+### Updating the estimation of the robot position.
+
+The current robot tracks where the goals are relative to it by estimating their position based on its wheel encoder measurements and how it moves through the map. Wheel encoders are subject to 'drifting' if they are not recalibrated with the outside environment. One feature we were intending on adding but we ran out of time is the ability for the robot to correct for drift by updating its position estimate whenever it saw a goal. We ended up implementing vision processing to find th heading to the goal, however when trying to find a distance to the goal we had difficulties due to the LIDAR's limited range. In order to fully implement the robot correcting its estimates we would have to estimate the distance to the goal from the images included in the camera and unortunately we did not have the time to fully implement this feature.
+
+### Ball Path Estimation
 
 One of the drawbacks of our current model is that it doesn't work well for kicking moving objects. The robot sees the ball once, calculates how to kick it to the goal, then moves to that point before checking the position of the ball again. If the ball were moving fast, the neato would be constantly behind. An interesting direction for further exploration may go into predicting where the ball will be by the time the neato can make it there. Real soccer players must do this constantly, and barely even think about predicting the uninterupted path of the ball. However this method may be too much for the current gazebo setup we are using. It was not clear in our study whether the refresh rate of the ball's position was fast or accurate enough to compute ball velocities and directions while the neato itself is moving. Perhaps better combining the LIDAR and camera, or integrating a new sensor would make this more feasible.
 
-#### Defence Neato's
+### Defence Neato's
 
 In soccer offense is not everything. To play a real game with neatos (at least the simplest 1 versus 1) the robot should know how to play defence. One way to do this would be to estimate the path of the ball, as previously mentioned. However a more sophisticated approach may use probability fields to determine the most likely position at which a rolling ball will be intercepted.  
