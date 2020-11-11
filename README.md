@@ -17,18 +17,15 @@ The goal of this project was generally to develop a robotic system which reacts 
 ##Table of Contents
 Overview
 Our Approach
-    the controller
-    object identification
 Design decisions
 Challenges
 Project extensions
-lessons learned
 
 ## Overview:
 
-Computer vision, or the process of a computer using a camera to percieve its environment, is an important skill to understand when designing robotic systems. This is because cameras are generally a cheap information dense source of information. This makes them an ideal canidate for a sensor on a robotic platform. However, computers unlike our minds can't readily process images and extract useful information and so many techniques have been developed to allow computers to process images. These range from complex machine learning algorithms such as you would see on a self driving car, or more simple image adjustments such as color balance corection which is available on some drones.
+Computer vision, or the process of a computer using a camera to perceive its environment, is an important skill to understand when designing robotic systems. This is because cameras are generally a cheap information dense source of information. This makes them an ideal candidate for a sensor on a robotic platform. However, computers unlike our minds can't readily process images and extract useful information and so many techniques have been developed to allow computers to process images. These range from complex machine learning algorithms such as you would see on a self driving car, or more simple image adjustments such as color balance correction which is available on some drones.
 
-Due to the importance of computer vision for robotics projects we designed our project to provide a good environment for learning fundamental computer vision concepts and integrating them into a robotic controll scheme. The project we setteled on was robotic soccer where the robot would have to use a camera to find a ball and a goal and manuver itself in order to kick the ball into the goal. This would help us learn some of the fundamental computer vision tools such as object detection, object localization in an image, image filtering, and camera distortion then we could take those concepts and actually implement them in a useable way to inform a controll algorithm for the robot's movement.
+Due to the importance of computer vision for robotics projects we designed our project to provide a good environment for learning fundamental computer vision concepts and integrating them into a robotic control scheme. The project we settled on was robotic soccer where the robot would have to use a camera to find a ball and a goal and maneuver itself in order to kick the ball into the goal. This would help us learn some of the fundamental computer vision tools such as object detection, object localization in an image, image filtering, and camera distortion then we could take those concepts and actually implement them in a useable way to inform a control algorithm for the robot's movement.
 
 ## Our Approach
 
@@ -38,22 +35,27 @@ The controller has a few fundamental behaviors it switches between to create the
 
 #### Searching
 
-The default behavior of the controller is that it tries to locate the ball and the goal in the global cordinate frame. The main action the robot will make during this process is to turn while looking for the ball. This way the robot can locate the ball even if it is not in the camera's line of sight.
+The default behavior of the controller is that it tries to locate the ball and the goal in the global coordinate frame. The main action the robot will make during this process is to turn while looking for the ball. This way the robot can locate the ball even if it is not in the camera's line of sight.
 
 [TODO: gif of bot looking for ball]
 
-The robot also starts with knowlege of where it is located in the map and so it keeps an internal notion of the location of the goals so it can locate them even if they are outside of the camera frame.
+The robot also starts with knowledge of where it is located in the map and so it keeps an internal notion of the location of the goals so it can locate them even if they are outside of the camera frame.
+
 #### Positioning
 
-Once the ball is located, the neato needs to calculate where to go in order to bump the ball towards the goal. We decided to do these calculations in the map frame. Given the ball and odom_data, we created a transformer function to convert a poler coordinate in the base_link frame to a cartesian in the map frame. We also knew the position of each goal in the map, and decided that the center of each goal's opening would be the ideal spot to aim for. Looking at the image below, we used the vectors to the ball and goal from the robot to create a vector from the goal to the ball. This vector represented the direction the ball needed to travel to make a goal (albiet in the opposite direction). Extending this vector along it's trajectory allowed us to find the best position for the neato to kick from.
+Once the ball is located, the neato needs to calculate where to go in order to bump the ball towards the goal. We decided to do these calculations in the map frame. Given the ball and odom_data, we created a transformer function to convert a poler coordinate in the base_link frame to a Cartesian in the map frame. We also knew the position of each goal in the map, and decided that the center of each goal's opening would be the ideal spot to aim for. Looking at the image below, we used the vectors to the ball and goal from the robot to create a vector from the goal to the ball. This vector represented the direction the ball needed to travel to make a goal (albeit in the opposite direction). Extending this vector along it's trajectory allowed us to find the best position for the neato to kick from.
 
 <img src="media/Neato_position.jpg" width=300 />
 
 The neato then travels to the calculated position and prepares itself to kick the ball.
 
+[TODO: gif of bot positioning]
+
 #### Kicking
 
 Once the neato has arrived at the desired kicking position it turns to center the ball in its camera view and moves into kicking range. To actually kick the ball the neato rams it at 3 m/s thus launching the ball in the desired trajectory.
+
+[TODO: Gif of bot Kicking
 
 ### Vision tracking
 
@@ -65,12 +67,29 @@ The bulk of our vision processing was used for tracking the ball, however we als
 
 The first task was to identify the ball in the camera view. To help in this endeavor we colored the ball red, a color which was distinct from the environment. This allowed us to filter the image by color. If colors in the image were within a certain range of values in the Blue, Green, Red color spectrum they were labeled as being part of the ball or not part of the ball. This in tern created a 'binary image' all pixels which contained the ball were represented in white while all of the background pixels were represented in black.
 
-### 'Center of Mass' calculation to find image corddinates of the ball
+[TODO: Representative image of the base image and filtered binary image]
 
-We then determined the location of the ball in the image by finding the 'center of mass' in image space of the white pixels in the image. Performing this calulation across each axis of the image allowed us to retrieve x,y cordinates in the image for the ball.
+### 'Center of Mass' calculation to find image coordinates of the ball
 
-### 
-<img src="media/Neato_position.jpg" width=300 />
+We then determined the location of the ball in the image by finding the 'center of mass' in image space of the white pixels in the image. Performing this calculation across each axis of the image allowed us to retrieve x,y coordinates in the image for the ball.
+
+### Pinhole camera method to convert the pixel location into a heading relative to the robot
+
+We converted the pixel positioning of the object into a world position by combining the pinhole camera method to find angle relative to the robot and the LIDAR to find the distance.
+
+The basics of the pinhole camera method geometrically relate an object's location in the real world with its location in the image by representing the light as being focused through a small hole at the focal length of the camera.
+
+The formula for finding the angle of an object relative to the camera is the following:
+
+`angle = atan(xPosition / focalLength)`
+
+For this project we did not know the focal length of the camera and so we had to calculate it from it's relation with the camera's field of view which we measured experimentally. The calculation is expressed in the following expression:
+
+`focalLength = -300 / tan(vanishingAngle)'
+
+The vanishing angle is the experimentally measured property which describes the maximum angle the field of view of the camera makes with the line normal to the camera's face.
+
+These calculations provide the angle in real world space relative to the robot's axies we then queried this angle in the LIDAR scan to determine how far away the ball was from the robot.
 
 ## Challenges
 
