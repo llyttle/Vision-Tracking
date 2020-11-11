@@ -53,16 +53,22 @@ Once the ball was located, the neato needed to calculate where to go in order to
 
 ## Challenges
 
-### Losing sight
+#### Losing sight
 
 One of the largest drawbacks of using camera vision rather than LIDAR is its limited viewing angle. When looking for the ball and turning the robot, the ball often skipped in and out of frame before it was recognized by the color filter. An effective solution to this problem was utilizing variable speed control for turning the robot. More specifically, the angular speed of the robot was proportional to how centered the ball was in the image. Slowing the rotation as the ball reached the center both eliminated the skipping issue and resulted in faster centering.
 
 Another problem caused by the narrow window of the camera was keeping track of the ball when positioning the robot to kick it. Lining the neato up with the ball and the goal often required turning the neato away from the ball to head towards the more strategic position. However, many parts of our code relied upon knowing the ball's position and distance from the robot. Initially, this problem lead to the neato circling the ball, like it was too scared to leave it. Our state oriented Arbiter reduced this problem by ignoring these reliant functions until the neato made it to the lineup position.
 
-### Incorporation with LIDAR
+#### Incorporation with LIDAR
 
 Over the course of this project, we learned that both camera vision and LIDAR have their benefits and drawbacks. While the camera has a relatively narrow range of sight, the LIDAR has limited distance. One of the challenges in this project was combining the two to cover up for the other's weaknesses. For most of the project, the ball was considered 'defined' as long as it was in view of the camera. Being 'defined' triggered other functions, such as calculations for the best angle to kick it. Later we realized that, while a ball at the far end of the soccer field was easily visible to the camera, the LIDAR registered 'inf' untill the distance was under ten meters. Our solution to this was to further specify the conditions under which a function would be called. Defining these parameters was a meticulous and time consuming process.
 
 ## Future Improvements
 
-###
+#### Ball Path Estimation
+
+One of the drawbacks of our current model is that it doesn't work well for kicking moving objects. The robot sees the ball once, calculates how to kick it to the goal, then moves to that point before checking the position of the ball again. If the ball were moving fast, the neato would be constantly behind. An interesting direction for further exploration may go into predicting where the ball will be by the time the neato can make it there. Real soccer players must do this constantly, and barely even think about predicting the uninterupted path of the ball. However this method may be too much for the current gazebo setup we are using. It was not clear in our study whether the refresh rate of the ball's position was fast or accurate enough to compute ball velocities and directions while the neato itself is moving. Perhaps better combining the LIDAR and camera, or integrating a new sensor would make this more feasible.
+
+#### Defence Neato's
+
+In soccer offense is not everything. To play a real game with neatos (at least the simplest 1 versus 1) the robot should know how to play defence. One way to do this would be to estimate the path of the ball, as previously mentioned. However a more sophisticated approach may use probability fields to determine the most likely position at which a rolling ball will be intercepted.  
