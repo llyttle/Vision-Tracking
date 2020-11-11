@@ -43,7 +43,7 @@ The robot also starts with knowledge of where it is located in the map and so it
 
 Once the ball is located, the neato needs to calculate where to go in order to bump the ball towards the goal. We decided to do these calculations in the map frame. Given the ball and odom_data, we created a transformer function to convert a poler coordinate in the base_link frame to a Cartesian in the map frame. We also knew the position of each goal in the map, and decided that the center of each goal's opening would be the ideal spot to aim for. Looking at the image below, we used the vectors to the ball and goal from the robot to create a vector from the goal to the ball. This vector represented the direction the ball needed to travel to make a goal (albeit in the opposite direction). Extending this vector along it's trajectory allowed us to find the best position for the neato to kick from.
 
-<img src="media/Neato_position.jpg" width=500 />
+<img src="media/Neato_position.jpg" width=300 />
 
 The neato then travels to the calculated position and prepares itself to kick the ball.
 
@@ -61,7 +61,7 @@ The bulk of our vision processing was used for tracking the ball, however we als
 
 The first task was to identify the ball in the camera view. To help in this endeavor we colored the ball red, a color which was distinct from the environment. This allowed us to filter the image by color. If colors in the image were within a certain range of values in the Blue, Green, Red color spectrum they were labeled as being part of the ball or not part of the ball. This in tern created a 'binary image' all pixels which contained the ball were represented in white while all of the background pixels were represented in black.
 
-<img src="media/filter.png" width=300 />
+<img src="media/filter.png" width=500 />
 
 ### 'Center of Mass' calculation to find image coordinates of the ball
 
