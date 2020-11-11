@@ -49,7 +49,6 @@ The robot also starts with knowlege of where it is located in the map and so it 
 
 Once the ball was located, the neato needed to calculate where to go in order to bump the ball towards the goal. We decided to do these calculations in the map frame. Given the ball and odom_data, we created a transformer function to convert a poler coordinate in the base_link frame to a cartesian in the map frame. We also knew the position of each goal in the map, and decided that the center of each goal's opening would be the ideal spot to aim for. Looking at the image below, we used the vectors to the ball and goal from the robot to create a vector from the goal to the ball. This vector represented the direction the ball needed to travel to make a goal (albiet in the opposite direction). Extending this vector along it's trajectory allowed us to find the best position for the neato to be.
 
-![normal dist](media/Neato_position.jpg)
 <img src="media/Neato_position.jpg" width=300 />
 
 ## Challenges
