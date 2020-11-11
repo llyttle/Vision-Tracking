@@ -85,7 +85,7 @@ The formula for finding the angle of an object relative to the camera is the fol
 
 For this project we did not know the focal length of the camera and so we had to calculate it from it's relation with the camera's field of view which we measured experimentally. The calculation is expressed in the following expression:
 
-`focalLength = -300 / tan(vanishingAngle)'
+`focalLength = -300 / tan(vanishingAngle)`
 
 The vanishing angle is the experimentally measured property which describes the maximum angle the field of view of the camera makes with the line normal to the camera's face.
 
