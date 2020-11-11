@@ -37,25 +37,19 @@ The controller has a few fundamental behaviors it switches between to create the
 
 The default behavior of the controller is that it tries to locate the ball and the goal in the global coordinate frame. The main action the robot will make during this process is to turn while looking for the ball. This way the robot can locate the ball even if it is not in the camera's line of sight.
 
-[TODO: gif of bot looking for ball]
-
 The robot also starts with knowledge of where it is located in the map and so it keeps an internal notion of the location of the goals so it can locate them even if they are outside of the camera frame.
 
 #### Positioning
 
 Once the ball is located, the neato needs to calculate where to go in order to bump the ball towards the goal. We decided to do these calculations in the map frame. Given the ball and odom_data, we created a transformer function to convert a poler coordinate in the base_link frame to a Cartesian in the map frame. We also knew the position of each goal in the map, and decided that the center of each goal's opening would be the ideal spot to aim for. Looking at the image below, we used the vectors to the ball and goal from the robot to create a vector from the goal to the ball. This vector represented the direction the ball needed to travel to make a goal (albeit in the opposite direction). Extending this vector along it's trajectory allowed us to find the best position for the neato to kick from.
 
-<img src="media/Neato_position.jpg" width=300 />
+<img src="media/Neato_position.jpg" width=500 />
 
 The neato then travels to the calculated position and prepares itself to kick the ball.
-
-[TODO: gif of bot positioning]
 
 #### Kicking
 
 Once the neato has arrived at the desired kicking position it turns to center the ball in its camera view and moves into kicking range. To actually kick the ball the neato rams it at 3 m/s thus launching the ball in the desired trajectory.
-
-[TODO: Gif of bot Kicking
 
 ### Vision tracking
 
