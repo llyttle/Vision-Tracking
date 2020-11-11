@@ -67,7 +67,7 @@ The bulk of our vision processing was used for tracking the ball, however we als
 
 The first task was to identify the ball in the camera view. To help in this endeavor we colored the ball red, a color which was distinct from the environment. This allowed us to filter the image by color. If colors in the image were within a certain range of values in the Blue, Green, Red color spectrum they were labeled as being part of the ball or not part of the ball. This in tern created a 'binary image' all pixels which contained the ball were represented in white while all of the background pixels were represented in black.
 
-[TODO: Representative image of the base image and filtered binary image]
+<img src="media/filter.png" width=300 />
 
 ### 'Center of Mass' calculation to find image coordinates of the ball
 
