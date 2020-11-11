@@ -50,6 +50,8 @@ class BallTracker(object):
         self.found_object = False
         self.last_ball_direction = 1
         self.laser_scan_data = None
+        self.Driving_to_Pos = None
+        self.state = 0
 
 #HELPER FUNCTIONS ==============================================================================================================
 #===============================================================================================================================
@@ -190,81 +192,94 @@ class BallTracker(object):
         linvel = 0
 
         msg = Twist(Vector3(linvel,0,0), Vector3(0,0,angvel))
-
         return msg
+
+    def get_lineup_pos(self):
+        # Position of Goal and Ball in map
+        goal_map = np.array([8, 0])
+        ball_map = self.neato2map(math.radians(self.ball_pos_data[0]), self.ball_pos_data[1]+.5)
+
+        # Find desired_position in map frame
+        goal2ball = ball_map - goal_map                                 # Vector from goal to the ball
+        theta, d = self.cart2pol(goal2ball[0], goal2ball[1])
+        desired_position_from_goal = self.pol2cart(theta, d+2)          # Extending the vector from the goal to the ball
+        self.desired_position_map = goal_map + desired_position_from_goal    # defining linup position in terms of the map, not the goal
+        print(self.ball_pos_data)
 
     def position_neato(self):
         """ Find where the neato needs to be to kick the ball into the goal and drive to that position.
             This function requires a (theta, d) vector for the desired goal and for the ball
         """
-        # Position of Goal and Ball in map
-        goal_map = np.array([8, 0])
-        ball_map = self.neato2map(math.radians(self.ball_pos_data[0]), self.ball_pos_data[1]+.5)
-
-        goal2ball = ball_map - goal_map                                 # Vector from goal to the ball
-        theta, d = self.cart2pol(goal2ball[0], goal2ball[1])
-        desired_position_from_goal = self.pol2cart(theta, d+2)  # Extending the vector from the goal to the ball
-        desired_position_map = goal_map + desired_position_from_goal    # defining linup position in terms of the map, not the goal
-
         # Desired_position in terms of the neato
-        desired_position = self.map2neato(desired_position_map[0], desired_position_map[1])
-        print(desired_position)
+        desired_position = self.map2neato(self.desired_position_map[0], self.desired_position_map[1])
 
         #move neato to desired_position
-        if desired_position[1] > .3:
+        if desired_position[1] >= .3:
             angvel = math.degrees(desired_position[0])/30
+
+
             linvel = 1
+            self.Driving_to_Pos = True
         else:
             angvel = 0
             linvel = 0
-
+            self.Driving_to_Pos = False
+        
         msg = Twist(Vector3(linvel,0,0), Vector3(0,0,angvel))
         return msg
 
     def kick_ball(self):
-        error_margin = 1        # Margin that the robot will consider "close enough" of straight forward
-
-        # if the ball is farther than 2 meters, go towards the ball
-        if self.ball_pos_data[1] > 2:
-            if self.ball_pos_data[0] < 0-error_margin or self.ball_pos_data[0] > 0+error_margin:
-                angvel = self.ball_pos_data[0]/30
-            else:
-                    angvel = 0
-            linvel = 1
-        # if the ball is closer than 2 meters, kick the ball
+        #find the ball again
+        if self.ball_pos_data[2] == False:
+            msg = self.search_for_ball()
         else:
-            # move at 10 m/s straight        
-            linvel = 10
-            angvel = 0
+            # face the ball
+            if abs(math.degrees(self.ball_pos_data[0])) > 1:
+                angvel = self.ball_pos_data[0]/30
+                linvel = 0
+            # kick the ball
+            else:
+                # move at 3 m/s straight        
+                linvel = 3
+                angvel = 0
+                msg = Twist(Vector3(linvel,0,0), Vector3(0,0,angvel))
+                # send the message to the robot`
+                self.pub.publish(msg)
+
+                # move forward for 2 seconds
+                rospy.sleep(2.0)
+
+                # stop
+                linvel = 0
+                self.state = 0
+
             msg = Twist(Vector3(linvel,0,0), Vector3(0,0,angvel))
-            # send the message to the robot`
-            self.pub.publish(msg)
-
-            # move forward for 2 seconds
-            rospy.sleep(2.0)
-
-            # stop
-            linvel = 0
-
-        msg = Twist(Vector3(linvel,0,0), Vector3(0,0,angvel))
-
         return msg
     
     def Arbiter(self):
         """ Controller function for soccer player. Manages the following behaviors:
             if no ball -- search for ball
-            if ball -- position behind ball
+            if ball -- position behind 
+                when going to desire position, dont need to see the ball
             if in position -- kick the ball
         """
-        if self.ball_pos_data[2] == False: #and self.positioning == False:
-            self.msg = self.search_for_ball()
-        #elif self.ball_pos_data != None: 
-            #self.msg = self.position_neato()
-        #    pass
-        else: #self.ball_pos_data != None and self.in_position == True:       # """in position""":
-            self.msg = self.position_neato()
+        self.msg = Twist(Vector3(0,0,0), Vector3(0,0,0))        
         
-            #self.msg = self.kick_ball()
+        print(self.state)
+        if self.state == 0:
+            if self.ball_pos_data[2] == False:
+                self.msg = self.search_for_ball()
+            elif self.ball_pos_data[1] < 10:
+                self.get_lineup_pos()
+                self.state = 1
+            else:
+                self.msg = Twist(Vector3(1,0,0), Vector3(0,0,0))
+        if self.state == 1:
+            self.msg = self.position_neato()
+            if self.Driving_to_Pos == False:
+                self.state = 2
+        if self.state == 2:
+            self.msg = self.kick_ball()
         
     def run(self):
         """ The main run loop """
